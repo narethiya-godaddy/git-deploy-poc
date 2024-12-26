@@ -12,46 +12,54 @@ inputs:
     description: 'The remote host (IP or domain)'
     required: true
 
+env:
+  TAR_FILE: "output/repository.tar.gz"
+  IGNORE_FILE: "ignore_files.txt"
+  CHECKOUT_DIR: "git_checkout"
+
 runs:
   using: 'composite'
   steps:
     - name: Checkout repository
       with:
-        path: git_checkout
+        path: $CHECKOUT_DIR
       uses: actions/checkout@v3
 
     - name: Install dependencies
       shell: bash
-      run: sudo apt-get update && sudo apt-get install -y rsync sshpass
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y rsync sshpass
 
-    ## create ignore_files.txt for files to ignore in tar file
     - name: Create ignore file for exclusions
       shell: bash
       run: |
-          echo ".git" > ignore_files.txt
-          echo ".github" >> ignore_files.txt
-          echo "Thumbs.db" >> ignore_files.txt
-          echo "wp-config.php" >> ignore_files.txt
-          echo "wp-content/uploads/" >> ignore_files.txt
-          echo "wp-content/mu-plugins/" >> ignore_files.txt
-          echo "README.md" >> ignore_files.txt
-          echo ".gitignore" >> ignore_files.txt
+        echo ".git" > "$IGNORE_FILE"
+        echo ".github" >> "$IGNORE_FILE"
+        echo "Thumbs.db" >> "$IGNORE_FILE"
+        echo "wp-config.php" >> "$IGNORE_FILE"
+        echo "wp-content/uploads/" >> "$IGNORE_FILE"
+        echo "wp-content/mu-plugins/" >> "$IGNORE_FILE"
+        echo "README.md" >> "$IGNORE_FILE"
+        echo ".gitignore" >> "$IGNORE_FILE"
+        echo "Ignore file contents:"
+        cat "$IGNORE_FILE"
 
-      # Step 4: Create a tar file using the ignore file
     - name: Create tar file
       shell: bash
-      env:
-        TAR_FILE: "./output/repository.tar.gz"
       run: |
-          mkdir -p output
-          cat ignore_files.txt
-          tar --exclude-from=ignore_files.txt -czf "$TAR_FILE" -C git_checkout .
+        mkdir -p output
+        echo "Creating tar file: $TAR_FILE"
+        tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
+        echo "Tar file created successfully."
 
     - name: Add remote host to known_hosts
       shell: bash
+      env:
+        REMOTE_HOST: ${{ inputs.remote_host }}
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -H ${{ inputs.remote_host }} >> ~/.ssh/known_hosts
+        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
 
     - name: Deploy files via rsync
       shell: bash
@@ -60,21 +68,20 @@ runs:
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         REMOTE_HOST: ${{ inputs.remote_host }}
         REMOTE_DIR: '/html/deployer'
-        TAR_FILE: "./output/repository.tar.gz"
       run: |
-        ## create deployer DIR
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$REMOTE_HOST "mkdir -p '$REMOTE_DIR'"
-        ## upload zip file
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
+        echo "Creating remote directory: $REMOTE_DIR"
+        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
+        
+        echo "Uploading tar file to $REMOTE_DIR"
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$REMOTE_HOST:$REMOTE_DIR"
+        echo "Deployment completed successfully."
 
     - name: Clean up
       shell: bash
-      env:
-        TAR_FILE: "./output/repository.tar.gz"
-        IGNORE_FILE: "ignore_files.txt"
-        CHECKOUT_DIR: "/git_checkout"
       run: |
+        echo "Cleaning up temporary files..."
         rm -f "$IGNORE_FILE"
         rm -rf "$TAR_FILE"
         rm -rf "$CHECKOUT_DIR"
+        echo "Temporary files cleaned up successfully."
         ls -lha

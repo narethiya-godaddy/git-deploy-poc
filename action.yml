@@ -19,14 +19,17 @@ runs:
       uses: actions/checkout@v3
 
     - name: Install dependencies
+      shell: bash
       run: sudo apt-get update && sudo apt-get install -y rsync sshpass
 
     - name: Add remote host to known_hosts
+      shell: bash
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ inputs.remote_host }} >> ~/.ssh/known_hosts
 
     - name: Deploy files via rsync
+      shell: bash
       env:
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}

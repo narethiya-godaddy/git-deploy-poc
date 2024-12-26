@@ -36,7 +36,8 @@ runs:
           echo "wp-content/uploads/" >> ignore_files.txt
           echo "wp-content/mu-plugins/" >> ignore_files.txt
           echo "./ignore_files.txt" >> ignore_files.txt
-          echo "./output/" >> ignore_files.txt
+          echo "output/repository.tar.gz" >> ignore_files.txt
+          echo "README.md" >> ignore_files.txt
           echo ".gitignore" >> ignore_files.txt
 
       # Step 4: Create a tar file using the ignore file

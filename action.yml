@@ -46,6 +46,7 @@ runs:
         TAR_FILE: "./output/repository.tar.gz"
       run: |
           mkdir -p output
+          cat ignore_files.txt
           tar --exclude-from=ignore_files.txt -czf "$TAR_FILE" .
 
     - name: Add remote host to known_hosts

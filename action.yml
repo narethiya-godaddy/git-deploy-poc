@@ -26,15 +26,18 @@ runs:
     - name: Create ignore file for exclusions
       shell: bash
       run: |
-          echo "ignore_files.txt" >> ignore_files.txt
-          echo "output/" >> ignore_files.txt
-          echo ".gitignore" >> ignore_files.txt
+          rm -f ignore_files.txt
+          touch ignore_files.txt
+          rm -rf ./output
           echo ".git" > ignore_files.txt
           echo ".github" >> ignore_files.txt
           echo "Thumbs.db" >> ignore_files.txt
           echo "wp-config.php" >> ignore_files.txt
           echo "wp-content/uploads/" >> ignore_files.txt
           echo "wp-content/mu-plugins/" >> ignore_files.txt
+          echo "./ignore_files.txt" >> ignore_files.txt
+          echo "./output/" >> ignore_files.txt
+          echo ".gitignore" >> ignore_files.txt
 
       # Step 4: Create a tar file using the ignore file
     - name: Create tar file
@@ -73,3 +76,4 @@ runs:
       run: |
         rm -f "$IGNORE_FILE"
         rm -rf "$TAR_FILE"
+        ls -lha

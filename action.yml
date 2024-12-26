@@ -12,11 +12,6 @@ inputs:
     description: 'The remote host (IP or domain)'
     required: true
 
-env:
-  TAR_FILE: "./output/repository.tar.gz"
-  IGNORE_FILE: "ignore_files.txt"
-  CHECKOUT_DIR: "git_checkout"
-
 runs:
   using: 'composite'
   steps:
@@ -86,9 +81,9 @@ runs:
     - name: Clean up
       shell: bash
       env:
-        TAR_FILE: ${{ env.IGNORE_FILE }}
-        IGNORE_FILE: ${{ env.TAR_FILE }}
-        CHECKOUT_DIR: ${{ env.CHECKOUT_DIR }}
+        TAR_FILE: "./output/repository.tar.gz"
+        IGNORE_FILE: "ignore_files.txt"
+        CHECKOUT_DIR: "git_checkout"
       run: |
         echo "Cleaning up temporary files..."
         rm -f "$TAR_FILE"

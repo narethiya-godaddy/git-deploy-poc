@@ -1,0 +1,36 @@
+name: 'Deploy Repository via rsync'
+description: 'A custom action to deploy a repository to a remote server using rsync.'
+
+inputs:
+  ssh_user:
+    description: 'The SSH username'
+    required: true
+  ssh_password:
+    description: 'The SSH password'
+    required: true
+  remote_host:
+    description: 'The remote host (IP or domain)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y rsync sshpass
+
+    - name: Add remote host to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ inputs.remote_host }} >> ~/.ssh/known_hosts
+
+    - name: Deploy files via rsync
+      env:
+        SSH_USER: ${{ inputs.ssh_user }}
+        SSH_PASSWORD: ${{ inputs.ssh_password }}
+        REMOTE_HOST: ${{ inputs.remote_host }}
+        REMOTE_DIR: '/home/client_62733a344a/html/test'
+      run: |
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete --exclude='.git' ./ "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"

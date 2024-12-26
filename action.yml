@@ -28,13 +28,14 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        echo "$IGNORE_FILE"
         sudo apt-get update -q
         sudo apt-get install -y rsync sshpass
-        echo "$IGNORE_FILE"
 
     - name: Create ignore file for exclusions
       shell: bash
       run: |
+        echo "$IGNORE_FILE"
         echo ".git" > "$IGNORE_FILE"
         echo ".github" >> "$IGNORE_FILE"
         echo "Thumbs.db" >> "$IGNORE_FILE"

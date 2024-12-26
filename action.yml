@@ -22,6 +22,24 @@ runs:
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y rsync sshpass
 
+    - name: Create ignore file for exclusions
+      shell: bash
+      run: |
+          echo ".gitignore" >> ignore_files.txt
+          echo ".git" > ignore_files.txt
+          echo ".github" >> ignore_files.txt
+          echo "Thumbs.db" >> ignore_files.txt
+          echo "wp-config.php" >> ignore_files.txt
+          echo "wp-content/uploads/" >> ignore_files.txt
+          echo "wp-content/mu-plugins/" >> ignore_files.txt
+
+      # Step 4: Create a tar file using the ignore file
+    - name: Create tar file
+      shell: bash
+      run: |
+          mkdir -p output
+          tar --exclude-from=ignore_files.txt -czf ./output/repository.tar.gz ./
+
     - name: Add remote host to known_hosts
       shell: bash
       run: |
@@ -34,6 +52,8 @@ runs:
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         REMOTE_HOST: ${{ inputs.remote_host }}
-        REMOTE_DIR: '/home/client_62733a344a/html/test'
+        REMOTE_DIR: '/html/deployer'
       run: |
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete --exclude='.git' ./ "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
+        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$REMOTE_HOST "mkdir -p '$REMOTE_DIR'"
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete ./output/repository.tar.gz "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
+

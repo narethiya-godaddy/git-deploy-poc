@@ -45,7 +45,7 @@ runs:
       run: |
           mkdir -p output
           cat ignore_files.txt
-          tar --exclude-from=ignore_files.txt -czf "$TAR_FILE" git_checkout
+          tar --exclude-from=ignore_files.txt -czf "$TAR_FILE" -C git_checkout .
 
     - name: Add remote host to known_hosts
       shell: bash

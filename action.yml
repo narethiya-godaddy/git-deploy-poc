@@ -87,8 +87,8 @@ runs:
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -f "$IGNORE_FILE"
-        rm -rf "$TAR_FILE"
-        rm -rf "$CHECKOUT_DIR"
+        rm -f "${{ env.IGNORE_FILE }}"
+        rm -rf "${{ env.TAR_FILE }}"
+        rm -rf "${{ env.CHECKOUT_DIR }}"
         echo "Temporary files cleaned up successfully."
         ls -lha

@@ -85,10 +85,14 @@ runs:
 
     - name: Clean up
       shell: bash
+      env:
+        TAR_FILE: ${{ env.IGNORE_FILE }}
+        IGNORE_FILE: ${{ env.TAR_FILE }}
+        CHECKOUT_DIR: ${{ env.CHECKOUT_DIR }}
       run: |
         echo "Cleaning up temporary files..."
-        rm -f "${{ env.IGNORE_FILE }}"
-        rm -rf "${{ env.TAR_FILE }}"
-        rm -rf "${{ env.CHECKOUT_DIR }}"
+        rm -f "$TAR_FILE"
+        rm -rf "IGNORE_FILE"
+        rm -rf "$CHECKOUT_DIR"
         echo "Temporary files cleaned up successfully."
         ls -lha

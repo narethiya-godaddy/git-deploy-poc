@@ -22,9 +22,12 @@ runs:
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y rsync sshpass
 
+    ## create ignore_files.txt for files to ignore in tar file
     - name: Create ignore file for exclusions
       shell: bash
       run: |
+          echo "ignore_files.txt" >> ignore_files.txt
+          echo "output/" >> ignore_files.txt
           echo ".gitignore" >> ignore_files.txt
           echo ".git" > ignore_files.txt
           echo ".github" >> ignore_files.txt
@@ -36,9 +39,11 @@ runs:
       # Step 4: Create a tar file using the ignore file
     - name: Create tar file
       shell: bash
+      env:
+        TAR_FILE: "./output/repository.tar.gz"
       run: |
           mkdir -p output
-          tar --exclude-from=ignore_files.txt -czf ./output/repository.tar.gz ./
+          tar --exclude-from=ignore_files.txt -czf "$TAR_FILE" .
 
     - name: Add remote host to known_hosts
       shell: bash
@@ -53,7 +58,10 @@ runs:
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         REMOTE_HOST: ${{ inputs.remote_host }}
         REMOTE_DIR: '/html/deployer'
+        TAR_FILE: "./output/repository.tar.gz"
       run: |
+        ## create deployer DIR
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USER@$REMOTE_HOST "mkdir -p '$REMOTE_DIR'"
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete ./output/repository.tar.gz "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
+        ## upload zip file
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
 

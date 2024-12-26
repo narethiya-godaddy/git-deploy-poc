@@ -71,9 +71,6 @@ runs:
         REMOTE_DIR: '/html/deployer'
         TAR_FILE: "./output/repository.tar.gz"
       run: |
-        echo "Creating remote directory: $REMOTE_DIR"
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
-        
         echo "Uploading tar file to $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$REMOTE_HOST:$REMOTE_DIR"
         echo "Deployment completed successfully."

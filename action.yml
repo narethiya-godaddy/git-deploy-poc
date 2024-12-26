@@ -28,7 +28,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        echo "$IGNORE_FILE"
+        echo $IGNORE_FILE
         sudo apt-get update -q
         sudo apt-get install -y rsync sshpass
 

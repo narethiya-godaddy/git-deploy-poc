@@ -65,3 +65,11 @@ runs:
         ## upload zip file
         sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER"@"$REMOTE_HOST":"$REMOTE_DIR"
 
+    - name: Clean up
+      shell: bash
+      env:
+        TAR_FILE: "./output/repository.tar.gz"
+        IGNORE_FILE: "ignore_files.txt"
+      run: |
+        rm -f "$IGNORE_FILE"
+        rm -rf "$TAR_FILE"

@@ -32,10 +32,16 @@ runs:
           echo ".git" > ignore_files.txt
           echo ".github" >> ignore_files.txt
           echo "Thumbs.db" >> ignore_files.txt
-          echo "wp-config.php" >> ignore_files.txt
-          echo "wp-content/uploads/" >> ignore_files.txt
+          echo ".gitignore" >> ignore_files.txt
+          echo ".htaccess" >> ignore_files.txt
+          echo "readme.md" >> ignore_files.txt
+          echo "platform/" >> ignore_files.txt
+          echo "wp-admin/" >> ignore_files.txt
+          echo "wp-includes/" >> ignore_files.txt
           echo "wp-content/mu-plugins/" >> ignore_files.txt
-          echo "README.md" >> ignore_files.txt
+          echo "wp-content/themes/twenty*/" >> ignore_files.txt
+          echo "wp-content/uploads/" >> ignore_files.txt
+          echo "*.log" >> ignore_files.txt
           echo ".gitignore" >> ignore_files.txt
           echo "Ignore file contents:"
           cat ignore_files.txt

@@ -53,14 +53,14 @@ runs:
         echo "wp-signup.php" >> $IGNORE_FILE
         echo "wp-trackback.php" >> $IGNORE_FILE
         echo "xmlrpc.php" >> $IGNORE_FILE
-        echo "platform/" >> $IGNORE_FILE
-        echo "wp-admin/" >> $IGNORE_FILE
-        echo "wp-includes/" >> $IGNORE_FILE
-        echo "wp-content/mu-plugins/" >> $IGNORE_FILE
-        echo "wp-content/themes/twenty*/" >> $IGNORE_FILE
-        echo "wp-content/object-cache.php" >> $IGNORE_FILE
-        echo "wp-content/uploads/" >> $IGNORE_FILE
-        echo "*.log" >> $IGNORE_FILE
+        echo "./platform/" >> $IGNORE_FILE
+        echo "./wp-admin/" >> $IGNORE_FILE
+        echo "./wp-includes/" >> $IGNORE_FILE
+        echo "./wp-content/mu-plugins/" >> $IGNORE_FILE
+        echo "./wp-content/themes/twenty*/" >> $IGNORE_FILE
+        echo "./wp-content/object-cache.php" >> $IGNORE_FILE
+        echo "./wp-content/uploads/" >> $IGNORE_FILE
+        echo "./*.log" >> $IGNORE_FILE
         echo "Ignore file contents:"
         cat $IGNORE_FILE
 

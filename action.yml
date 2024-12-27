@@ -74,7 +74,7 @@ runs:
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         REMOTE_HOST: ${{ inputs.remote_host }}
-        REMOTE_DIR: '/deployer'
+        REMOTE_DIR: '/html/deployer'
         TAR_FILE: "output/repository.tar.gz"
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
@@ -99,8 +99,6 @@ runs:
 
     - name: Run Deployer
       shell: bash
-      env:
-        REMOTE_DIR: '/deployer'
       run: |
         echo "Run Server deployer"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" 'bash -s' < /deployer.sh

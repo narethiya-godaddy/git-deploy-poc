@@ -84,8 +84,8 @@ runs:
       run: |
           echo "Creating tar file: $TAR_FILE"
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --out-format='%n' $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" > $DIFF_FILE
-          sed -i '' '/\/$/d' "${DIFF_FILE}"
-          sed -i '' '1,2d;$d;$d;$d;$d;$d' "${DIFF_FILE}"
+          sed -i '/\/$/d' "${DIFF_FILE}"        
+          sed -i '1,2d;$d;$d;$d;$d;$d' "${DIFF_FILE}"
           echo "differences file list start"
           cat "$DIFF_FILE"
           echo "List ends here"

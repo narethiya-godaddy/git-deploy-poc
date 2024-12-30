@@ -79,6 +79,7 @@ runs:
         CHECKOUT_DIR: "git_checkout"
         DIFF_FILE: "output/differences.txt"
         SSH_USER: ${{ inputs.ssh_user }}
+        SSH_PASSWORD: ${{ inputs.ssh_password }}
         REMOTE_HOST: ${{ inputs.remote_host }}
       run: |
           echo "Creating tar file: $TAR_FILE"
@@ -133,6 +134,10 @@ runs:
 
     - name: Run Deployer
       shell: bash
+      env:
+        SSH_USER: ${{ inputs.ssh_user }}
+        SSH_PASSWORD: ${{ inputs.ssh_password }}
+        REMOTE_HOST: ${{ inputs.remote_host }}
       run: |
         echo "Run Server deployer"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "/html/deployer.sh || exit 1"

@@ -25,6 +25,14 @@ runs:
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
 
+    - name: Add remote host to known_hosts
+      shell: bash
+      env:
+        REMOTE_HOST: ${{ inputs.remote_host }}
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
+
     - name: Create ignore file for exclusions
       shell: bash
       env:
@@ -92,14 +100,6 @@ runs:
           echo "tar file size:"
           ls -lh $TAR_FILE | awk '{print $5}'
           cat $DIFF_FILE
-
-    - name: Add remote host to known_hosts
-      shell: bash
-      env:
-        REMOTE_HOST: ${{ inputs.remote_host }}
-      run: |
-        mkdir -p ~/.ssh
-        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
 
     - name: Deploy files via rsync
       shell: bash

@@ -72,7 +72,7 @@ runs:
       run: |
           echo "Creating tar file: $TAR_FILE"
           START_TIME=$(date +%s)
-          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --out-format='%n' $CHECKOUT_DIR $REMOTE_DIR > output/differences.txt
+          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --out-format='%n' $CHECKOUT_DIR/ /html/ | awk '{print $NF}' > output/differences.txt
           echo "differences file list start"
           cat output/differences.txt
           echo "List ends here"

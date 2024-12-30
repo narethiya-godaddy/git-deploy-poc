@@ -74,7 +74,7 @@ runs:
           tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
           echo "Tar file created successfully."
           echo "tar file size:"
-          ls -lh gitignore.txt | awk '{print $5}'
+          ls -lh $TAR_FILE | awk '{print $5}'
 
     - name: Add remote host to known_hosts
       shell: bash

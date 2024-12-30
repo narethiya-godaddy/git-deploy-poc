@@ -31,6 +31,8 @@ runs:
         IGNORE_FILE: "output/ignore_files.txt"
       run: |
         mkdir -p output
+        ls -lha .github
+        ls -lha .github/actions
         cp .github/actions/ignorefiles.txt $IGNORE_FILE
         echo "Ignoring following files/ dir from tar file"
         cat $IGNORE_FILE

@@ -32,7 +32,7 @@ runs:
       run: |
         mkdir -p output
         ls -l .
-        cp ./.github/actions/ignorefiles.txt $IGNORE_FILE
+        cp .github/actions/data/ignorefiles.txt $IGNORE_FILE
         echo "Ignoring following files/ dir from tar file"
         cat $IGNORE_FILE
 

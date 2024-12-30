@@ -70,6 +70,8 @@ runs:
         IGNORE_FILE: "output/ignore_files.txt"
         CHECKOUT_DIR: "git_checkout"
         DIFF_FILE: "output/differences.txt"
+        SSH_USER: ${{ inputs.ssh_user }}
+        REMOTE_HOST: ${{ inputs.remote_host }}
       run: |
           echo "Creating tar file: $TAR_FILE"
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --out-format='%n' $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" > $DIFF_FILE

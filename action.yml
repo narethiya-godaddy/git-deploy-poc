@@ -86,7 +86,9 @@ runs:
           START_TIME=$(date +%s)
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --exclude=wp-content/mu-plugins/ --out-format='%n' $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" > $DIFF_FILE
           sed -i '/\/$/d' "${DIFF_FILE}"
-          sed -i '1,2d;${N;N;N;N;N;d}' "${DIFF_FILE}"
+          sed -i '1,2d;$d;' "${DIFF_FILE}"
+          sed -i '$d;' "${DIFF_FILE}"
+          sed -i '$d;' "${DIFF_FILE}"
           END_TIME=$(date +%s)
           echo "differences file list start"
           cat "$DIFF_FILE"
@@ -94,6 +96,7 @@ runs:
           RSYNC_DURATION=$((END_TIME - START_TIME))
           echo "Rsync dry-run completed in $RSYNC_DURATION seconds."
           START_TIME=$(date +%s)
+          tar -czvf $TAR_FILE -T "$DIFF_FILE"
           END_TIME=$(date +%s)
           TAR_DURATION=$((END_TIME - START_TIME))
           echo "TAR completed in $TAR_DURATION seconds."

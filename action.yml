@@ -72,10 +72,10 @@ runs:
       run: |
           echo "Creating tar file: $TAR_FILE"
 #          tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
-          START=$(date +%s)             
+          START=$(date +%s)
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --out-format='%n' $CHECKOUT_DIR $REMOTE_DIR > output/differences.txt
           END=$(date +%s)
-          RSYNC_DURATION=$((END - START))             
+          RSYNC_DURATION=$((END - START))
           echo "Rsync dry-run completed in $RSYNC_DURATION seconds."
           START=$(date +%s)
           tar -czvf $TAR_FILE -T output/differences.txt

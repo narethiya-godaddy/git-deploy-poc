@@ -69,25 +69,27 @@ runs:
         TAR_FILE: "output/repository.tar.gz"
         IGNORE_FILE: "output/ignore_files.txt"
         CHECKOUT_DIR: "git_checkout"
+        DIFF_FILE: "output/differences.txt"
       run: |
           echo "Creating tar file: $TAR_FILE"
-          START_TIME=$(date +%s)
-          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --out-format='%n' $CHECKOUT_DIR/ /html/ | awk '{print $NF}' > output/differences.txt
+          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --exclude=.git --out-format='%n' $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" > $DIFF_FILE
+          sed -i '' '/\/$/d' $DIFF_FILE
+          sed -i '' '1,2d;$d;$d;$d;$d;$d' $DIFF_FILE
           echo "differences file list start"
-          cat output/differences.txt
+          cat $DIFF_FILE
           echo "List ends here"
           END_TIME=$(date +%s)
           RSYNC_DURATION=$((END_TIME - START_TIME))
           echo "Rsync dry-run completed in $RSYNC_DURATION seconds."
           START_TIME=$(date +%s)
-          tar -czvf $TAR_FILE -T output/differences.txt
+          tar -czvf $TAR_FILE -T $DIFF_FILE
           END_TIME=$(date +%s)
           TAR_DURATION=$((END_TIME - START_TIME))
           echo "TAR completed in $TAR_DURATION seconds."
           echo "Tar file created successfully."
           echo "tar file size:"
           ls -lh $TAR_FILE | awk '{print $5}'
-          cat output/differences.txt
+          cat $DIFF_FILE
 
     - name: Add remote host to known_hosts
       shell: bash

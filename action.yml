@@ -96,7 +96,7 @@ runs:
           RSYNC_DURATION=$((END_TIME - START_TIME))
           echo "Rsync dry-run completed in $RSYNC_DURATION seconds."
           START_TIME=$(date +%s)
-          tar -czvf $TAR_FILE -T "$DIFF_FILE"
+          tar -czvf $TAR_FILE -T "$DIFF_FILE" -C "$CHECKOUT_DIR" .
           END_TIME=$(date +%s)
           TAR_DURATION=$((END_TIME - START_TIME))
           echo "TAR completed in $TAR_DURATION seconds."

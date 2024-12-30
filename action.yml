@@ -73,6 +73,7 @@ runs:
           echo "Creating tar file: $TAR_FILE"
           START_TIME=$(date +%s)
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --out-format='%n' $CHECKOUT_DIR $REMOTE_DIR > output/differences.txt
+          cat output/differences.txt
           END_TIME=$(date +%s)
           RSYNC_DURATION=$((END_TIME - START_TIME))
           echo "Rsync dry-run completed in $RSYNC_DURATION seconds."

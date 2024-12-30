@@ -71,7 +71,6 @@ runs:
         CHECKOUT_DIR: "git_checkout"
       run: |
           echo "Creating tar file: $TAR_FILE"
-#          tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
           START_TIME=$(date +%s)
           sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --out-format='%n' $CHECKOUT_DIR $REMOTE_DIR > output/differences.txt
           END_TIME=$(date +%s)

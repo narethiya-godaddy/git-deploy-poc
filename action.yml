@@ -71,10 +71,21 @@ runs:
         CHECKOUT_DIR: "git_checkout"
       run: |
           echo "Creating tar file: $TAR_FILE"
-          tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
+#          tar --exclude-from="$IGNORE_FILE" -czf "$TAR_FILE" -C "$CHECKOUT_DIR" .
+          START=$(date +%s)             
+          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum --out-format='%n' $CHECKOUT_DIR $REMOTE_DIR > output/differences.txt
+          END=$(date +%s)
+          RSYNC_DURATION=$((END - START))             
+          echo "Rsync dry-run completed in $RSYNC_DURATION seconds."
+          START=$(date +%s)
+          tar -czvf $TAR_FILE -T output/differences.txt
+          END=$(date +%s)
+          TAR_DURATION=$((END - START))
+          echo "TAR completed in $TAR_DURATION seconds."
           echo "Tar file created successfully."
           echo "tar file size:"
           ls -lh $TAR_FILE | awk '{print $5}'
+          cat output/differences.txt
 
     - name: Add remote host to known_hosts
       shell: bash
@@ -92,6 +103,7 @@ runs:
         REMOTE_HOST: ${{ inputs.remote_host }}
         REMOTE_DIR: '/html/deployer'
         TAR_FILE: "output/repository.tar.gz"
+        CHECKOUT_DIR: "git_checkout"
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"

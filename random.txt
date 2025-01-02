@@ -1,0 +1,162 @@
+SSH Command
+ ssh client_62733a344a@j6o.b29.myftpupload.com
+Username
+ client_62733a344a
+Password
+ D5GP9oj8J7ccni
+
+
+/home/client_62733a344a/html/test
+
+
+sshpass -p "D5GP9oj8J7ccni" rsync -avz -e ssh /Users/arethiyanarankarshan/Documents/godaddy/test client_62733a344a@j6o.b29.myftpupload.com:/home/client_62733a344a/html
+
+
+sshpass -p "D5GP9oj8J7ccni" rsync -avz -e ssh client_62733a344a@j6o.b29.myftpupload.com:/home/client_62733a344a/html /Users/arethiyanarankarshan/Documents/godaddy/test
+
+
+sshpass -p D5GP9oj8J7ccni client_62733a344a@j6o.b29.myftpupload.com
+
+
+
+git tag -d v0.0.1 && git tag -a -m "initial release" v0.0.1 && git push --follow-tags
+
+
+sshpass -p "D5GP9oj8J7ccni" rsync -avz -e --dry-run --out-format='%n' ssh ./ client_62733a344a@j6o.b29.myftpupload.com:/html
+
+
+sshpass -p "D5GP9oj8J7ccni" rsync -avz --dry-run --checksum --exclude=.git --out-format='%n' ./ client_62733a344a@j6o.b29.myftpupload.com:/html/ | awk '{print $NF}' > output/differences.txt
+
+tar -czvf ./repository.tar.gz -T differences.txt
+
+
+
+backup files before replace them: Use  --backup and --backup-dir rsync options, We can also trigger Godaddy's backup command which do DB and files backup
+only new file or updated content file should replaces: use --checksum
+ignore core wordpress files from rsync
+flush DB and CDN cache post deployment
+Alow User to pass post deployment commands
+How to monitor erros or maintain the logs?
+How to verify is wordpress site working fine after deployment?
+we should have dedicated SSH user for deployment per site
+We should swith to private key based auth instead of username and password
+avoid running multiple deployer on same time
+Automic Deployment - handle this based on backup files created by rsync
+
+
+
+rsync -av --checksum --backup --backup-dir=/backup --suffix="" /deployer/your-source-dir/ /html/
+
+
+Ignore dirs
+----------
+.git
+.env
+.github
+.gitignore
+.htaccess
+Thumbs.db
+readme.md
+platform/
+wp-admin/
+wp-includes/
+wp-content/mu-plugins/
+wp-content/themes/twenty*/
+wp-content/uploads/
+*.log
+
+i am uploading wordpress source code in tar and Give me shell script that untar file present in /html/deployer/repository.tar.gz in to /deployer/repository/
+my actutal application dir is /html
+use /deployer for all deployment releted stuff
+store backup files while rsync at /deployer/backup-{timestamp} using --backup --backup-dir --suffix=""
+also rsync should ingnore file sync for follwing dir exist in /html as well in tar file
+.git
+.env
+.github
+.gitignore
+.htaccess
+Thumbs.db
+readme.md
+platform/
+wp-admin/
+wp-includes/
+wp-content/mu-plugins/
+wp-content/themes/twenty*/
+wp-content/uploads/
+*.log
+
+
+after check is wordpress working fine or not with core wordpress command like `wp core is-installed` or any command which check wordpress health
+
+
+if all went well trigger wordpress cache flush
+else re deploy backup files
+
+
+
+
+tar --exclude-from=ignorefiles.txt -czf output/repository.tar.gz -C "$CHECKOUT_DIR" .
+
+tar --exclude-from=ignorefiles.txt -czf ../repository.tar.gz  .
+
+sed -i '' '1,2d;$d;$d;$d;$d;$d' differences.txt
+
+tar -czvf $TAR_FILE -T "$DIFF_FILE"
+ls -lh $TAR_FILE | awk '{print $5}'
+
+
+
+how to test CI workflow ?
+
+
+
+
+
+
+Public github action
+-----------------
+Create public Repo in GoDaddy's opensource account
+use local testing tool https://github.com/nektos/act
+add github action for lint and git release on git tag creation
+Create documentation(Readme.md)
+Write changelog.md file for future release
+LICENSE information
+Release it to marketplace
+create workflow arguments
+    - Check wordpress health for rollback
+    - custom commands after deployment
+Trigger custom command passed as workflow arguments
+Avoid running multiple deployment in same time
+
+
+
+Server Side deployment worker(deployer.sh)
+-----------------------------
+Create deployer.sh file to handle deployment(replace files, trigger cache flush, Etc.)
+Avoid running multiple deployment in same time
+Copy backup file to some other location for reporting purpose
+Log the deployment for reporting purpose
+
+
+
+
+MGMT repo
+-----------------
+Generate action.yml template file, which customer uses as their github workflow
+Create Dedicated user(deployer user) to deployment workflow, this should be created only when customer request for workflow action.yml template
+Create public and private SSH keys for deployer user.
+Customer can view the private and public SSH key from godaddy customer panel
+Mount deployer.sh(worker script) to only ssh deployer user
+Allow only deployer user to execute deplyer.sh
+Only this User should have access to `/deployment` directory, which uses for all deployment related work
+Customer should allow to view deployment logs
+Customer can Manual rollback to specific deployment from deployment logs(for limited period)
+
+
+
+
+Finally like feature in github workflow
+https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#status-check-functions
+
+
+add discussion points for who customer get the source code

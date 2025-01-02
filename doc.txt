@@ -1,0 +1,91 @@
+
+We have an application that provisions WordPress site on Nomad, and Nomad hosted on was EC2, each WordPress site has their own container and all files are mounted to storage, we also support FTP, SSH access to those containers for users.
+Now, we want new feature where user can deploy their new changes via GitHub workflow.
+
+
+Other information
+--------------
+- We have public github action which our customer can use to deploy their wordpress repo on server
+- Customer uses our github action in their workflow to trigger deployment
+- That workflow needs an SSH key to access the server
+- I have identified 3 ways to deploy files on server, all these ways are devided based on what actions are handle on server and what actions handles on workflow
+- Server or Workflow use rsync for actual file replacement
+- rsync(on server or workflow) only replace files which has been modified, it can be check by --checksum flag
+- rsync always used --backup --backup-dir --suffix to backup actual file before replace it
+- all the ways uses backup files created by rsync incase of rollback
+- all the ways exclude wordpress core files from being transfer to server
+
+Here are the ways to transfer files from workflow to server
+
+1) Direct rsync from Workflow
+-----------------------------
+Intro
+	- The CI/CD workflow directly uses rsync to transfer modified files to the server.
+	- The --checksum flag ensures only files with content changes are transferred.
+	- WordPress core files and other excluded files are skipped during synchronization.
+	- Includes options for backup (--backup, --backup-dir) and rollback in case of failure.
+
+pros
+	- Efficient Transfer: Transfers only modified files, reducing data transfer overhead.
+	- Simple Workflow: Eliminates the need for creating or managing tar files.
+	- Immediate Feedback: Failures in file transfer are detected and reported quickly.
+
+Cons
+	- Future changes need new release for github workflow, existing customer needs to manually update their code to adapt changes
+	- Need to add extra steps to notify server for start, end, rollback deployment
+
+
+2) Create Tar File for Modified Files and Upload
+---------------------------------------------
+Intro:
+	- Uses rsync --dry-run --checksum to identify modified files.
+	- Creates a tar file containing only modified files and uploads it to the server.
+	- On the server, the tar file is extracted, and rsync handles file replacement and backups.
+
+pros
+	- Efficient Transfer: Create tar file for only modified files reducing data transfer overhead.
+	- No need to release any github workflow release as workflow only responsible for creating tar file
+	- No need of extra steps to notify server for start, end, rollback deployment
+	- We can have more control on deployemnt as whole responsibility of deployement on server side
+
+Cons
+	- Increased Latency: Rsync for identify files and Tar creation and upload introduce additional delays in deployment.
+
+
+3) Upload All Files via Tar
+-----------------------
+Intro:
+	- Creates a tar file containing the entire repository (excluding WordPress core files) and uploads it to the server.
+	- The server extracts the tar file and uses rsync to replace modified files with backups.
+
+Pro
+	- Server-based Deployment: Reduces dependency on the CI/CD environment, as the server handles the actual file replacement.
+	- No need to release any github workflow release as workflow only responsible for creating tar file
+	- No need of extra steps to notify server for start, end, rollback deployment
+	- We can have more control on deployemnt as whole responsibility of deployement on server side
+
+Cons
+	- Higher Data Transfer: Uploading the entire repository increases data transfer time and cost.
+	- Storage Overhead: Requires sufficient disk space on the server for the full repository and backups.
+	- Potential Resource Strain: High server resource usage during extraction and replacement.
+
+
+-------------------------------
+Action Items
+-------------------------------
+
+Public github action TODO
+--------------------------
+Create public Repo in GoDaddy's opensource account
+use local testing tool https://github.com/nektos/act
+add github action for lint and git release on git tag creation
+Create documentation(Readme.md)
+Write changelog.md file for future release
+LICENSE information
+Release it to marketplace
+create flags
+Check wordpress health for rollback
+custom commands after deployment
+Avoid running workflow if lock file exist
+Write actual action.yml after final call
+

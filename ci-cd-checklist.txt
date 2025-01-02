@@ -1,0 +1,88 @@
+When deploying and replacing files via CI/CD, especially for an application like WordPress, here are key best practices and considerations to ensure a smooth deployment:
+
+1. Pre-Deployment Checks
+Code Validation:
+Ensure the source code is linted, tested, and passes all CI checks before deployment.
+
+Database Backup:
+Always take a backup of the database in addition to file backups. This ensures you can revert changes if the deployment affects database functionality.
+
+Configuration File Safety:
+Avoid overwriting sensitive configuration files (e.g., wp-config.php) unless explicitly intended. Ensure .env or equivalent environment configuration files are not overwritten.
+
+
+2. Exclude Unnecessary Files
+Ensure .git, .svn, and other VCS-related files are not deployed.
+Exclude files/directories unnecessary for the runtime environment, such as:
+Documentation files (e.g., README.md).
+Local-only or development artifacts (e.g., logs, caches).
+
+3. Deployment Strategy
+Atomic Deployment:
+Use a staging directory to prepare files and switch to production only after the deployment is complete. This avoids partial updates.
+
+Checksum-Based Replacement:
+Use rsync with --checksum to replace only files with content changes, reducing downtime and risk.
+
+Graceful Rollback:
+Always maintain the ability to restore the previous state using the backup
+
+4. WordPress-Specific Considerations
+Cache Management:
+Flush caches after deployment to ensure users see the latest changes.
+Use commands like wp cache flush or clear the cache for any caching plugins (e.g., W3 Total Cache).
+
+Plugin and Theme Compatibility:
+Verify compatibility of updated files with plugins and themes.
+If deploying plugin/theme updates, run wp plugin update or wp theme update before deployment.
+
+Avoid Downtime:
+Use a maintenance mode plugin or create an index.html with a maintenance message during the deployment.
+
+
+5. Security
+Sensitive File Handling:
+Never expose sensitive files such as .env or wp-config.php. Validate permissions on sensitive directories and files (e.g., 600 for wp-config.php).
+
+SSH Key-Based Authentication:
+Replace sshpass with SSH key-based authentication for better security.
+
+
+6. Post-Deployment Checks
+File Integrity:
+Use wp core verify-checksums to validate core WordPress files.
+
+Health Check:
+Run wp core is-installed or other diagnostic commands to ensure WordPress is operational.
+
+Visual Inspection:
+Test the site manually in different browsers and devices to verify everything works as expected.
+
+
+7. Monitoring and Alerts
+Error Logging:
+Monitor error logs (error_log, PHP logs, server logs) during and after deployment.
+
+Uptime Monitoring:
+Set up uptime monitoring to catch any downtime immediately.
+
+Slack/Webhook Notifications:
+Use CI/CD tools to notify the team about deployment success or failure via Slack, email, or webhooks.
+
+
+8. Testing in a Staging Environment
+Deploy to a staging environment first to catch issues before production.
+Verify:
+    File consistency
+    Plugin/theme compatibility
+    Core functionality of WordPress (e.g., logins, page loads, database queries)
+
+10. Documentation and Recovery
+Deployment Logs:
+Keep logs for each deployment to track changes and identify issues.
+
+Recovery Plan:
+Document a step-by-step recovery process, including database and file restoration.
+
+Final Note
+CI/CD deployments should focus on reliability, security, and minimal downtime. Implement testing and monitoring at every stage, and ensure backups and rollbacks are quick and easy. Would you like detailed scripts or workflow adjustments based on these suggestions?

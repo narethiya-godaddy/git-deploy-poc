@@ -17,6 +17,8 @@ runs:
   steps:
     - name: Checkout repository
       with:
+        repository: ${{ github.action_repository }}
+        ref: ${{ github.action_ref }}
         path: git_checkout
       uses: actions/checkout@v3
 

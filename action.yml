@@ -33,16 +33,16 @@ runs:
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
         echo 'Github Object: ${{ toJSON(github) }}'
 
-
     - name: Add remote host to known_hosts
       shell: bash
       env:
         REMOTE_HOST: ${{ inputs.remote_host }}
+        ACTION_PATH: ${{ github.action_path }}'
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
         ls -lha
-        ls git_action -lha
+        ls $ACTION_PATH -lha
 
     - name: Create tar file
       shell: bash

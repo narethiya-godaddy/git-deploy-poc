@@ -15,6 +15,16 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Install dependencies
+      id: install_dependencies
+      shell: bash
+      run: |
+        sudo apt-get update -q && sudo apt-get install -y rsync sshpass
+        echo 'Github Object: ${{ toJSON(github) }}'
+        ACTION_PATH="${{ github.action_path }}"
+        TAG_NAME=$(basename "$ACTION_PATH")
+        echo "::set-output name=tag::$TAG_NAME"
+
     - name: Checkout repository
       with:
         path: git_checkout
@@ -23,21 +33,15 @@ runs:
     - name: Checkout Action
       with:
         path: git_action
-        repository: ${{ github.action_repository }}
-        ref: ${{ github.action_ref }}
+        repository: https://github.com/narethiya-godaddy/git-deploy-poc
+        ref: ${{ steps.install_dependencies.outputs.tag }}
       uses: actions/checkout@v3
-
-    - name: Install dependencies
-      shell: bash
-      run: |
-        sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-        echo 'Github Object: ${{ toJSON(github) }}'
 
     - name: Add remote host to known_hosts
       shell: bash
       env:
         REMOTE_HOST: ${{ inputs.remote_host }}
-        ACTION_PATH: ${{ github.action_path }}'
+        ACTION_PATH: 'git_checkout'
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts

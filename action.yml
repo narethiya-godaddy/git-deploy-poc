@@ -76,7 +76,6 @@ runs:
         tar -czvf "../$TAR_FILE" -T "../$DIFF_FILE"
         cd ../
         echo "Tar file created successfully."
-        echo "tar file size:"
 
     - name: Deploy files via rsync
       shell: bash

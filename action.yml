@@ -31,8 +31,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-        echo ${{ github.action_repository }} 
-        echo ref: ${{ github.action_ref }}
+        echo github Object: ${{ github.action_repository }}
 
     - name: Add remote host to known_hosts
       shell: bash

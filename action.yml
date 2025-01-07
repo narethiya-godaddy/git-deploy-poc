@@ -37,7 +37,7 @@ runs:
 
     - name: Checkout repository
       with:
-        path: $action_dir
+        path: $checkout_dir
       uses: actions/checkout@v3
 
     - name: Checkout Action
@@ -58,10 +58,12 @@ runs:
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         SSH_HOST: ${{ inputs.remote_host }}
       run: |
+        ls -lha
+        ls $action_dir -lha
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
-        done < "$ignore_file"
+        done < "$IGNORE_FILE"
 
         echo "Preparing a cleaned list of changed files for sync with the remote server."
         sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE

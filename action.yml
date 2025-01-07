@@ -27,13 +27,16 @@ runs:
         TAG_NAME=$(basename "$ACTION_PATH")
         echo "Tag name: $TAG_NAME"
 
-        echo "action_tag=$TAG_NAME" >> $GITHUB_ENV
-        echo "tar_file=output/repository.tar.gz" >> $GITHUB_ENV
-        echo "checkout_dir=git_checkout" >> $GITHUB_ENV
-        echo "action_dir=action_dir" >> $GITHUB_ENV
-        echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_ENV
-        echo "diff_file=output/differences.txt" >> $GITHUB_ENV
-        echo "remote_dir=/html/deployer" >> $GITHUB_ENV
+        echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
+        echo "TAR_FILE=output/repository.tar.gz" >> $GITHUB_ENV
+        echo "CHECKOUT_DIR=git_checkout" >> $GITHUB_ENV
+        echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
+        echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
+        echo "DIFF_FILE=output/differences.txt" >> $GITHUB_ENV
+        echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
+        echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
+        echo "SSH_PASSWORD=${{ inputs.ssh_password }}" >> $GITHUB_ENV
+        echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
     - name: Checkout repository
       with:
@@ -49,17 +52,9 @@ runs:
 
     - name: Create tar file
       shell: bash
-      env:
-        TAR_FILE: $tar_file
-        IGNORE_FILE: $ignore_file
-        CHECKOUT_DIR: $checkout_dir
-        DIFF_FILE: $diff_file
-        SSH_USER: ${{ inputs.ssh_user }}
-        SSH_PASSWORD: ${{ inputs.ssh_password }}
-        SSH_HOST: ${{ inputs.remote_host }}
       run: |
         ls -lha
-        ls $action_dir -lha
+        ls $ACTION_DIR -lha
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
@@ -82,13 +77,6 @@ runs:
 
     - name: Deploy files via rsync
       shell: bash
-      env:
-        TAR_FILE: $tar_file
-        CHECKOUT_DIR: $checkout_dir
-        REMOTE_DIR: $remote_dir
-        SSH_PASSWORD: ${{ inputs.ssh_password }}
-        SSH_HOST: ${{ inputs.remote_host }}
-        SSH_USER: ${{ inputs.ssh_user }}
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
@@ -110,10 +98,6 @@ runs:
 
     - name: Run Deployer
       shell: bash
-      env:
-        SSH_USER: ${{ inputs.ssh_user }}
-        SSH_PASSWORD: ${{ inputs.ssh_password }}
-        SSH_HOST: ${{ inputs.remote_host }}
       run: |
         echo "Run Server deployer"
         echo "tar file name from Env: $REMOTE_TAR_FILE"

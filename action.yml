@@ -26,9 +26,6 @@ runs:
         repository: ${{ github.action_repository }}
         ref: ${{ github.action_ref }}
       uses: actions/checkout@v3
-      run: |
-        echo " git_action Repository checkout"
-        ls -lha
 
     - name: Install dependencies
       shell: bash

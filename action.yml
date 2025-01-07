@@ -15,49 +15,48 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install dependencies
-      id: install_dependencies
+    - name: Pre Check
+      id: pre_check
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-        echo 'Github Object: ${{ toJSON(github) }}'
+        
+        mkdir -p ~/.ssh
+        ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
+        
         ACTION_PATH="${{ github.action_path }}"
         TAG_NAME=$(basename "$ACTION_PATH")
         echo "::set-output name=tag::$TAG_NAME"
 
+        echo "::set-output name=tar_file::output/repository.tar.gz"
+        echo "::set-output name=checkout_dir::git_checkout"
+        echo "::set-output name=action_dir::action_dir"
+        echo "::set-output name=ignore_file::action_dir/ignore_files.txt"
+        echo "::set-output name=diff_file::output/differences.txt"
+        echo "::set-output name=remote_dir::/html/deployer"
+
     - name: Checkout repository
       with:
-        path: git_checkout
+        path: ${{ steps.pre_check.outputs.action_dir }}
       uses: actions/checkout@v3
 
     - name: Checkout Action
       with:
         path: git_action
         repository: narethiya-godaddy/git-deploy-poc
-        ref: ${{ steps.install_dependencies.outputs.tag }}
+        ref: ${{ steps.pre_check.outputs.tag }}
       uses: actions/checkout@v3
-
-    - name: Add remote host to known_hosts
-      shell: bash
-      env:
-        REMOTE_HOST: ${{ inputs.remote_host }}
-        ACTION_PATH: 'git_checkout'
-      run: |
-        mkdir -p ~/.ssh
-        ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
-        ls -lha
-        ls $ACTION_PATH -lha
 
     - name: Create tar file
       shell: bash
       env:
-        TAR_FILE: "output/repository.tar.gz"
-        IGNORE_FILE: "git_action/ignore_files.txt"
-        CHECKOUT_DIR: "git_checkout"
-        DIFF_FILE: "output/differences.txt"
+        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
+        IGNORE_FILE: ${{ steps.pre_check.outputs.ignore_file }}
+        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
+        DIFF_FILE: ${{ steps.pre_check.outputs.diff_file }}
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
-        REMOTE_HOST: ${{ inputs.remote_host }}
+        SSH_HOST: ${{ inputs.remote_host }}
       run: |
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
@@ -65,7 +64,7 @@ runs:
         done < "$IGNORE_FILE"
 
         echo "Preparing a cleaned list of changed files for sync with the remote server."
-        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" | grep -v '/$' > $DIFF_FILE
+        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
         sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
 
         echo "Files to be synchronized:"
@@ -82,27 +81,27 @@ runs:
     - name: Deploy files via rsync
       shell: bash
       env:
-        SSH_USER: ${{ inputs.ssh_user }}
+        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
+        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
+        REMOTE_DIR: ${{ steps.pre_check.outputs.remote_dir }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
-        REMOTE_HOST: ${{ inputs.remote_host }}
-        REMOTE_DIR: '/html/deployer'
-        TAR_FILE: "output/repository.tar.gz"
-        CHECKOUT_DIR: "git_checkout"
+        SSH_HOST: ${{ inputs.remote_host }}
+        SSH_USER: ${{ inputs.ssh_user }}
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
+        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
         REMOTE_TAR_FILE="repository_$(openssl rand -hex 4).tar.gz"
-        echo "REMOTE_TAR_FILE=$REMOTE_TAR_FILE" >> $GITHUB_ENV
+        echo "::set-output name=remote_tar_file::$REMOTE_TAR_FILE"
         echo "REMOTE_TAR_FILE: $REMOTE_TAR_FILE"
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$REMOTE_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
       shell: bash
       env:
-        TAR_FILE: "output/repository.tar.gz"
-        CHECKOUT_DIR: "git_checkout"
+        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
+        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
       run: |
         echo "Cleaning up temporary files..."
         rm -f "$TAR_FILE"
@@ -115,8 +114,8 @@ runs:
       env:
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
-        REMOTE_HOST: ${{ inputs.remote_host }}
+        SSH_HOST: ${{ inputs.remote_host }}
       run: |
         echo "Run Server deployer"
         echo "tar file name from Env: $REMOTE_TAR_FILE"
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "/html/deployer.sh || exit 1"
+        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh || exit 1"

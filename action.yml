@@ -24,14 +24,16 @@ runs:
         mkdir -p ~/.ssh
         ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
         ACTION_PATH="${{ github.action_path }}"
+        TAG_NAME=$(basename "$ACTION_PATH")
 
-        echo "action_tag=$(basename "$ACTION_PATH")" >> $GITHUB_ENV
+        echo "action_tag=$TAG_NAME" >> $GITHUB_ENV
         echo "tar_file=output/repository.tar.gz" >> $GITHUB_ENV
         echo "checkout_dir=git_checkout" >> $GITHUB_ENV
         echo "action_dir=action_dir" >> $GITHUB_ENV
         echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "diff_file=output/differences.txt" >> $GITHUB_ENV
         echo "remote_dir=/html/deployer" >> $GITHUB_ENV
+        echo "Action tag: $action_tag"
 
     - name: Checkout repository
       with:

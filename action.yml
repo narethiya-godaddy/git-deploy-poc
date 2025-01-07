@@ -33,7 +33,6 @@ runs:
         echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "diff_file=output/differences.txt" >> $GITHUB_ENV
         echo "remote_dir=/html/deployer" >> $GITHUB_ENV
-        echo "Action tag: $action_tag"
 
     - name: Checkout repository
       with:
@@ -44,7 +43,7 @@ runs:
       with:
         path: git_action
         repository: narethiya-godaddy/git-deploy-poc
-        ref: $action_tag
+        ref: 'v0.0.1'
       uses: actions/checkout@v3
 
     - name: Create tar file

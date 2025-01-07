@@ -33,7 +33,7 @@ runs:
     - name: Checkout Action
       with:
         path: git_action
-        repository: https://github.com/narethiya-godaddy/git-deploy-poc.git
+        repository: narethiya-godaddy/git-deploy-poc
         ref: ${{ steps.install_dependencies.outputs.tag }}
       uses: actions/checkout@v3
 

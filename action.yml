@@ -28,6 +28,7 @@ runs:
         echo "Tag name: $TAG_NAME"
 
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
+        echo "::set-output name=ACTION_TAG::$TAG_NAME"
         echo "TAR_FILE=output/repository.tar.gz" >> $GITHUB_ENV
         echo "CHECKOUT_DIR=git_checkout" >> $GITHUB_ENV
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
@@ -47,7 +48,7 @@ runs:
       with:
         path: action_dir
         repository: narethiya-godaddy/git-deploy-poc
-        ref: 'v0.0.1'
+        ref: ${{ steps.extract_tag.outputs.ACTION_TAG }}
       uses: actions/checkout@v3
 
     - name: Create tar file
@@ -60,6 +61,7 @@ runs:
           EXCLUDE_ARGS+="--exclude=$line "
         done < "$IGNORE_FILE"
 
+        touch $DIFF_FILE
         echo "Preparing a cleaned list of changed files for sync with the remote server."
         sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
         sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
@@ -82,7 +84,8 @@ runs:
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
         REMOTE_TAR_FILE="repository_$(openssl rand -hex 4).tar.gz"
-        echo "::set-output name=remote_tar_file::$REMOTE_TAR_FILE"
+        echo "REMOTE_TAR_FILE=$REMOTE_TAR_FILE" >> $GITHUB_ENV
+        
         echo "REMOTE_TAR_FILE: $REMOTE_TAR_FILE"
         sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
         echo "Tar file uploaded successfully."

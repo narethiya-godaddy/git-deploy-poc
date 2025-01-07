@@ -21,16 +21,20 @@ runs:
       uses: actions/checkout@v3
 
     - name: Checkout Action
+      env:
+          REPO: ${{ github.action_repository }}
+          REF: ${{ github.action_ref }}
       with:
         path: git_action
-        repository: ${{ github.action_repository }}
-        ref: ${{ github.action_ref }}
+        repository: $REPO
+        ref: $REF
       uses: actions/checkout@v3
 
     - name: Install dependencies
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
+        echo ${{ github.action_repository }}
 
     - name: Add remote host to known_hosts
       shell: bash

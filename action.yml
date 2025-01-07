@@ -20,6 +20,11 @@ runs:
         path: git_checkout
       uses: actions/checkout@v3
 
+    - name: Checkout Action
+      with:
+        path: git_action
+      uses: actions/checkout@v3
+
     - name: Install dependencies
       shell: bash
       run: |
@@ -33,49 +38,11 @@ runs:
         mkdir -p ~/.ssh
         ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts
 
-    - name: Create ignore file for exclusions
-      shell: bash
-      env:
-        IGNORE_FILE: "output/ignore_files.txt"
-      run: |
-        mkdir -p output
-        echo ".git" > $IGNORE_FILE
-        echo ".github" >> $IGNORE_FILE
-        echo "Thumbs.db" >> $IGNORE_FILE
-        echo ".gitignore" >> $IGNORE_FILE
-        echo ".htaccess" >> $IGNORE_FILE
-        echo "readme.md" >> $IGNORE_FILE
-        echo ".gitignore" >> $IGNORE_FILE
-        echo "index.php" >> $IGNORE_FILE
-        echo "plat-cron.php" >> $IGNORE_FILE
-        echo "wp-activate.php" >> $IGNORE_FILE
-        echo "wp-blog-header.php" >> $IGNORE_FILE
-        echo "wp-comments-post.php" >> $IGNORE_FILE
-        echo "wp-cron.php" >> $IGNORE_FILE
-        echo "wp-links-opml.php" >> $IGNORE_FILE
-        echo "wp-load.php" >> $IGNORE_FILE
-        echo "wp-login.php" >> $IGNORE_FILE
-        echo "wp-mail.php" >> $IGNORE_FILE
-        echo "wp-settings.php" >> $IGNORE_FILE
-        echo "wp-signup.php" >> $IGNORE_FILE
-        echo "wp-trackback.php" >> $IGNORE_FILE
-        echo "xmlrpc.php" >> $IGNORE_FILE
-        echo "./platform/" >> $IGNORE_FILE
-        echo "./wp-admin/" >> $IGNORE_FILE
-        echo "./wp-includes/" >> $IGNORE_FILE
-        echo "./wp-content/mu-plugins/" >> $IGNORE_FILE
-        echo "./wp-content/themes/twenty*/" >> $IGNORE_FILE
-        echo "./wp-content/object-cache.php" >> $IGNORE_FILE
-        echo "./wp-content/uploads/" >> $IGNORE_FILE
-        echo "./*.log" >> $IGNORE_FILE
-        echo "Ignoring following files/ dir from tar file"
-        cat $IGNORE_FILE
-
     - name: Create tar file
       shell: bash
       env:
         TAR_FILE: "output/repository.tar.gz"
-        IGNORE_FILE: "output/ignore_files.txt"
+        IGNORE_FILE: "git_action/ignore_files.txt"
         CHECKOUT_DIR: "git_checkout"
         DIFF_FILE: "output/differences.txt"
         SSH_USER: ${{ inputs.ssh_user }}
@@ -86,20 +53,21 @@ runs:
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
         done < "$IGNORE_FILE"
-          echo "Creating tar file: $TAR_FILE"
-          sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS --out-format='%n' $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" > $DIFF_FILE
-          sed -i '/\/$/d' "${DIFF_FILE}" && sed -i '1,2d;$d;' "${DIFF_FILE}" 
-          sed -i '$d;' "${DIFF_FILE}" && sed -i '$d;' "${DIFF_FILE}"
-          END_TIME=$(date +%s)
-          echo "differences file list start"
-          cat "$DIFF_FILE"
-          echo "differences List ends here"
-          cd $CHECKOUT_DIR
-          tar -czvf "../$TAR_FILE" -T "../$DIFF_FILE"
-          cd ../
-          echo "Tar file created successfully."
-          echo "tar file size:"
-          cat "$DIFF_FILE"
+
+        echo "Preparing a cleaned list of changed files for sync with the remote server."
+        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$REMOTE_HOST:/html/" | grep -v '/$' > $DIFF_FILE
+        sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
+
+        echo "Files to be synchronized:"
+        cat "$DIFF_FILE"
+        echo "End of list."
+        
+        cd $CHECKOUT_DIR
+        echo "Creating tar file: $TAR_FILE"
+        tar -czvf "../$TAR_FILE" -T "../$DIFF_FILE"
+        cd ../
+        echo "Tar file created successfully."
+        echo "tar file size:"
 
     - name: Deploy files via rsync
       shell: bash
@@ -114,19 +82,20 @@ runs:
         echo "Creating remote directory: $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$REMOTE_HOST:$REMOTE_DIR"
-        echo "Deployment completed successfully."
+        REMOTE_TAR_FILE="repository_$(openssl rand -hex 4).tar.gz"
+        echo "REMOTE_TAR_FILE=$REMOTE_TAR_FILE" >> $GITHUB_ENV
+        echo "REMOTE_TAR_FILE: $REMOTE_TAR_FILE"
+        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$REMOTE_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
+        echo "Tar file uploaded successfully."
 
     - name: Clean up
       shell: bash
       env:
         TAR_FILE: "output/repository.tar.gz"
-        IGNORE_FILE: "output/ignore_files.txt"
         CHECKOUT_DIR: "git_checkout"
       run: |
         echo "Cleaning up temporary files..."
         rm -f "$TAR_FILE"
-        rm -f "$IGNORE_FILE"
         rm -rf "$CHECKOUT_DIR"
         echo "Temporary files cleaned up successfully."
         ls -lha
@@ -139,4 +108,5 @@ runs:
         REMOTE_HOST: ${{ inputs.remote_host }}
       run: |
         echo "Run Server deployer"
+        echo "tar file name from Env: $REMOTE_TAR_FILE"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$REMOTE_HOST" "/html/deployer.sh || exit 1"

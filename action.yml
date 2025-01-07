@@ -25,33 +25,33 @@ runs:
         ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
         ACTION_PATH="${{ github.action_path }}"
 
-        echo "action_tag=$(basename "$ACTION_PATH")" >> $GITHUB_STATE
-        echo "tar_file=output/repository.tar.gz" >> $GITHUB_STATE
-        echo "checkout_dir=git_checkout" >> $GITHUB_STATE
-        echo "action_dir=action_dir" >> $GITHUB_STATE
-        echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_STATE
-        echo "diff_file=output/differences.txt" >> $GITHUB_STATE
-        echo "remote_dir=/html/deployer" >> $GITHUB_STATE
+        echo "action_tag=$(basename "$ACTION_PATH")" >> $GITHUB_ENV
+        echo "tar_file=output/repository.tar.gz" >> $GITHUB_ENV
+        echo "checkout_dir=git_checkout" >> $GITHUB_ENV
+        echo "action_dir=action_dir" >> $GITHUB_ENV
+        echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_ENV
+        echo "diff_file=output/differences.txt" >> $GITHUB_ENV
+        echo "remote_dir=/html/deployer" >> $GITHUB_ENV
 
     - name: Checkout repository
       with:
-        path: ${{ state.action_dir }}
+        path: $action_dir
       uses: actions/checkout@v3
 
     - name: Checkout Action
       with:
         path: git_action
         repository: narethiya-godaddy/git-deploy-poc
-        ref: ${{ state.action_tag }}
+        ref: $action_tag
       uses: actions/checkout@v3
 
     - name: Create tar file
       shell: bash
       env:
-        TAR_FILE: ${{ state.tar_file }}
-        IGNORE_FILE: ${{ state.ignore_file }}
-        CHECKOUT_DIR: ${{ state.checkout_dir }}
-        DIFF_FILE: ${{ state.diff_file }}
+        TAR_FILE: $tar_file
+        IGNORE_FILE: $ignore_file
+        CHECKOUT_DIR: $checkout_dir
+        DIFF_FILE: $diff_file
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         SSH_HOST: ${{ inputs.remote_host }}
@@ -59,7 +59,7 @@ runs:
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
-        done < "$IGNORE_FILE"
+        done < "$ignore_file"
 
         echo "Preparing a cleaned list of changed files for sync with the remote server."
         sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
@@ -79,9 +79,9 @@ runs:
     - name: Deploy files via rsync
       shell: bash
       env:
-        TAR_FILE: ${{ state.tar_file }}
-        CHECKOUT_DIR: ${{ state.checkout_dir }}
-        REMOTE_DIR: ${{ state.remote_dir }}
+        TAR_FILE: $tar_file
+        CHECKOUT_DIR: $checkout_dir
+        REMOTE_DIR: $remote_dir
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         SSH_HOST: ${{ inputs.remote_host }}
         SSH_USER: ${{ inputs.ssh_user }}
@@ -99,8 +99,8 @@ runs:
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -f "${{ state.tar_file }}"
-        rm -rf "${{ state.checkout_dir }}"
+        rm -f "$tar_file"
+        rm -rf "$checkout_dir"
         echo "Temporary files cleaned up successfully."
         ls -lha
 

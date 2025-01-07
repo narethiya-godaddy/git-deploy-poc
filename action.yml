@@ -20,40 +20,38 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-        
+
         mkdir -p ~/.ssh
         ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
-        
         ACTION_PATH="${{ github.action_path }}"
-        TAG_NAME=$(basename "$ACTION_PATH")
-        echo "::set-output name=tag::$TAG_NAME"
 
-        echo "::set-output name=tar_file::output/repository.tar.gz"
-        echo "::set-output name=checkout_dir::git_checkout"
-        echo "::set-output name=action_dir::action_dir"
-        echo "::set-output name=ignore_file::action_dir/ignore_files.txt"
-        echo "::set-output name=diff_file::output/differences.txt"
-        echo "::set-output name=remote_dir::/html/deployer"
+        echo "action_tag=$(basename "$ACTION_PATH")" >> $GITHUB_STATE
+        echo "tar_file=output/repository.tar.gz" >> $GITHUB_STATE
+        echo "checkout_dir=git_checkout" >> $GITHUB_STATE
+        echo "action_dir=action_dir" >> $GITHUB_STATE
+        echo "ignore_file=action_dir/ignore_files.txt" >> $GITHUB_STATE
+        echo "diff_file=output/differences.txt" >> $GITHUB_STATE
+        echo "remote_dir=/html/deployer" >> $GITHUB_STATE
 
     - name: Checkout repository
       with:
-        path: ${{ steps.pre_check.outputs.action_dir }}
+        path: ${{ state.action_dir }}
       uses: actions/checkout@v3
 
     - name: Checkout Action
       with:
         path: git_action
         repository: narethiya-godaddy/git-deploy-poc
-        ref: ${{ steps.pre_check.outputs.tag }}
+        ref: ${{ state.action_tag }}
       uses: actions/checkout@v3
 
     - name: Create tar file
       shell: bash
       env:
-        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
-        IGNORE_FILE: ${{ steps.pre_check.outputs.ignore_file }}
-        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
-        DIFF_FILE: ${{ steps.pre_check.outputs.diff_file }}
+        TAR_FILE: ${{ state.tar_file }}
+        IGNORE_FILE: ${{ state.ignore_file }}
+        CHECKOUT_DIR: ${{ state.checkout_dir }}
+        DIFF_FILE: ${{ state.diff_file }}
         SSH_USER: ${{ inputs.ssh_user }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         SSH_HOST: ${{ inputs.remote_host }}
@@ -81,9 +79,9 @@ runs:
     - name: Deploy files via rsync
       shell: bash
       env:
-        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
-        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
-        REMOTE_DIR: ${{ steps.pre_check.outputs.remote_dir }}
+        TAR_FILE: ${{ state.tar_file }}
+        CHECKOUT_DIR: ${{ state.checkout_dir }}
+        REMOTE_DIR: ${{ state.remote_dir }}
         SSH_PASSWORD: ${{ inputs.ssh_password }}
         SSH_HOST: ${{ inputs.remote_host }}
         SSH_USER: ${{ inputs.ssh_user }}
@@ -99,13 +97,10 @@ runs:
 
     - name: Clean up
       shell: bash
-      env:
-        TAR_FILE: ${{ steps.pre_check.outputs.tar_file }}
-        CHECKOUT_DIR: ${{ steps.pre_check.outputs.checkout_dir }}
       run: |
         echo "Cleaning up temporary files..."
-        rm -f "$TAR_FILE"
-        rm -rf "$CHECKOUT_DIR"
+        rm -f "${{ state.tar_file }}"
+        rm -rf "${{ state.checkout_dir }}"
         echo "Temporary files cleaned up successfully."
         ls -lha
 

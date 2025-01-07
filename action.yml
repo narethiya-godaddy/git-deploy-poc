@@ -55,8 +55,6 @@ runs:
     - name: Create tar file
       shell: bash
       run: |
-        ls -lha
-        ls $ACTION_DIR -lha
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
@@ -64,6 +62,8 @@ runs:
 
         touch $DIFF_FILE
         echo "Preparing a cleaned list of changed files for sync with the remote server."
+        echo "Ignore files: $IGNORE_FILE"
+        echo "Rsync Command: sshpass -p $SSH_PASSWORD rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/"
         sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
         sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
 

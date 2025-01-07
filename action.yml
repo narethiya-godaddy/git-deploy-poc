@@ -36,13 +36,17 @@ runs:
         echo "remote_dir=/html/deployer" >> $GITHUB_ENV
 
     - name: Checkout repository
+      env:
+        CHECKOUT_DIR: $checkout_dir
       with:
-        path: $checkout_dir
+        path: $CHECKOUT_DIR
       uses: actions/checkout@v3
 
     - name: Checkout Action
+      env:
+        CHECKOUT_DIR: $action_dir
       with:
-        path: $action_dir
+        path: $CHECKOUT_DIR
         repository: narethiya-godaddy/git-deploy-poc
         ref: 'v0.0.1'
       uses: actions/checkout@v3

@@ -97,7 +97,7 @@ runs:
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR $TEMP_KEY_FILE
+        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR
         echo "Temporary files cleaned up successfully."
 
     - name: Run Deployer
@@ -105,3 +105,4 @@ runs:
       run: |
         echo "Run Server deployer"
         ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh $TAR_NAME || exit 1"
+        rm -f $TEMP_KEY_FILE

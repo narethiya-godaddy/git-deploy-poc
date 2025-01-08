@@ -29,13 +29,12 @@ runs:
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
         echo "Tag name: $TAG_NAME"
 
-
         echo "::set-output name=ACTION_TAG::$TAG_NAME"
         echo "CHECKOUT_DIR=git_checkout" >> $GITHUB_ENV
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
-        echo "DIFF_FILE=output/differences.txt" >> $GITHUB_ENV
+        echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_PASSWORD=${{ inputs.ssh_password }}" >> $GITHUB_ENV
@@ -64,23 +63,23 @@ runs:
           EXCLUDE_ARGS+="--exclude=$line "
         done < "$IGNORE_FILE"
 
-        touch $DIFF_FILE
+        touch $SYNC_FILE_LIST
         echo "Preparing a cleaned list of changed files for sync with the remote server."
         echo "Rsync Command: rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/"
-        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
-        sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
+        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
+        sed -i '1d;N;$!P;$!D;$d;$d' "${$SYNC_FILE_LIST}"
 
         echo "Files to be synchronized:"
-        cat "$DIFF_FILE"
+        cat "$SYNC_FILE_LIST"
         echo "End of list."
         
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
-        tar -czvf "../$TAR_FILE" -T "../$DIFF_FILE"
+        tar -czvf "../$TAR_FILE" -T "../$SYNC_FILE_LIST"
         cd ../
         echo "Tar file created successfully."
 
-    - name: Deploy files via rsync
+    - name: Upload tar file to server
       shell: bash
       run: |
         echo "Creating remote directory: $REMOTE_DIR"

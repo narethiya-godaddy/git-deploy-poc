@@ -15,30 +15,34 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Pre Check
-      id: pre_check
+    - name: Config action
+      id: config
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
 
-        mkdir -p ~/.ssh
-        mkdir -p output
+        mkdir -p ~/.ssh output
         ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
+        
         ACTION_PATH="${{ github.action_path }}"
         TAG_NAME=$(basename "$ACTION_PATH")
+        echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
         echo "Tag name: $TAG_NAME"
 
-        echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
+
         echo "::set-output name=ACTION_TAG::$TAG_NAME"
-        echo "TAR_FILE=output/repository.tar.gz" >> $GITHUB_ENV
         echo "CHECKOUT_DIR=git_checkout" >> $GITHUB_ENV
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
+        echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "DIFF_FILE=output/differences.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_PASSWORD=${{ inputs.ssh_password }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
+
+        TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
+        echo "TAR_FILE=output/$TAR_NAME" >> $GITHUB_ENV
 
     - name: Checkout repository
       with:
@@ -49,7 +53,7 @@ runs:
       with:
         path: action_dir
         repository: narethiya-godaddy/git-deploy-poc
-        ref: ${{ steps.extract_tag.outputs.ACTION_TAG }}
+        ref: ${{ steps.config.outputs.ACTION_TAG }}
       uses: actions/checkout@v3
 
     - name: Create tar file
@@ -62,8 +66,7 @@ runs:
 
         touch $DIFF_FILE
         echo "Preparing a cleaned list of changed files for sync with the remote server."
-        echo "Ignore files: $IGNORE_FILE"
-        echo "Rsync Command: sshpass -p $SSH_PASSWORD rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/"
+        echo "Rsync Command: rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/"
         sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $DIFF_FILE
         sed -i '1d;N;$!P;$!D;$d;$d' "${DIFF_FILE}"
 
@@ -83,10 +86,7 @@ runs:
         echo "Creating remote directory: $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
-        REMOTE_TAR_FILE="repository_$(openssl rand -hex 4).tar.gz"
-        echo "REMOTE_TAR_FILE=$REMOTE_TAR_FILE" >> $GITHUB_ENV
         
-        echo "REMOTE_TAR_FILE: $REMOTE_TAR_FILE"
         sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
         echo "Tar file uploaded successfully."
 
@@ -94,8 +94,7 @@ runs:
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -f "$tar_file"
-        rm -rf "$checkout_dir"
+        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR
         echo "Temporary files cleaned up successfully."
         ls -lha
 

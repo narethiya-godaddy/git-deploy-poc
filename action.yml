@@ -3,14 +3,14 @@ name: 'Deploy Repository via rsync'
 description: 'A custom action to deploy a repository to a remote server using rsync.'
 
 inputs:
+  remote_host:
+    description: 'The remote host (IP or domain)'
+    required: true
   ssh_user:
     description: 'The SSH username'
     required: true
-  ssh_password:
-    description: 'The SSH password'
-    required: true
-  remote_host:
-    description: 'The remote host (IP or domain)'
+  ssh_private_key:
+    description: 'SSH Server private key'
     required: true
 
 runs:
@@ -38,11 +38,15 @@ runs:
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
-        echo "SSH_PASSWORD=${{ inputs.ssh_password }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
         TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
         echo "TAR_FILE=output/$TAR_NAME" >> $GITHUB_ENV
+        
+        TEMP_KEY_FILE="private_key"
+        echo "${{ inputs.ssh_private_key }}" > "$TEMP_KEY_FILE"
+        chmod 600 "$TEMP_KEY_FILE"
+        echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
 
     - name: Checkout repository
       with:
@@ -64,10 +68,8 @@ runs:
           EXCLUDE_ARGS+="--exclude=$line "
         done < "$IGNORE_FILE"
 
-        touch $SYNC_FILE_LIST
-        echo "Preparing a cleaned list of changed files for sync with the remote server."
-        echo "Rsync Command: rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/"
-        sshpass -p "$SSH_PASSWORD" rsync -av --dry-run --checksum $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
+        echo "Preparing a changed file list..."
+        rsync -av --dry-run --checksum "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "${$SYNC_FILE_LIST}"
 
         echo "Files to be synchronized:"
@@ -84,10 +86,10 @@ runs:
       shell: bash
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
+        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
 
-        sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
+        rsync -avz --delete "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
@@ -103,4 +105,4 @@ runs:
       run: |
         echo "Run Server deployer"
         echo "tar file name from Env: $REMOTE_TAR_FILE"
-        sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh || exit 1"
+        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh || exit 1"

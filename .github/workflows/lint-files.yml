@@ -1,5 +1,5 @@
+---
 name: Lint Action file
-
 on:
   workflow_dispatch:
   push:

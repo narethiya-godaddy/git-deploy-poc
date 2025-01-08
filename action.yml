@@ -1,3 +1,4 @@
+---
 name: 'Deploy Repository via rsync'
 description: 'A custom action to deploy a repository to a remote server using rsync.'
 
@@ -23,7 +24,7 @@ runs:
 
         mkdir -p ~/.ssh output
         ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
-        
+
         ACTION_PATH="${{ github.action_path }}"
         TAG_NAME=$(basename "$ACTION_PATH")
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
@@ -72,7 +73,7 @@ runs:
         echo "Files to be synchronized:"
         cat "$SYNC_FILE_LIST"
         echo "End of list."
-        
+
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
         tar -czvf "../$TAR_FILE" -T "../$SYNC_FILE_LIST"
@@ -85,7 +86,7 @@ runs:
         echo "Creating remote directory: $REMOTE_DIR"
         sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
-        
+
         sshpass -p "$SSH_PASSWORD" rsync -avz --delete "$TAR_FILE" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
         echo "Tar file uploaded successfully."
 

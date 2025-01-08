@@ -70,7 +70,7 @@ runs:
 
         echo "Preparing a changed file list..."
         rsync -av --dry-run --checksum -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
-        sed -i '1d;N;$!P;$!D;$d;$d' "${$SYNC_FILE_LIST}"
+        sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
 
         echo "Files to be synchronized:"
         cat "$SYNC_FILE_LIST"

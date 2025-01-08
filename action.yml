@@ -41,6 +41,7 @@ runs:
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
         TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
+        echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
         echo "TAR_FILE=output/$TAR_NAME" >> $GITHUB_ENV
         
         TEMP_KEY_FILE="private_key"
@@ -89,20 +90,18 @@ runs:
         ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
 
-        rsync -avz --delete -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/$REMOTE_TAR_FILE"
+        rsync -avz --delete -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR
+        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR $TEMP_KEY_FILE
         echo "Temporary files cleaned up successfully."
-        ls -lha
 
     - name: Run Deployer
       shell: bash
       run: |
         echo "Run Server deployer"
-        echo "tar file name from Env: $REMOTE_TAR_FILE"
-        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh || exit 1"
+        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh $TAR_NAME || exit 1"

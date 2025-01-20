@@ -28,15 +28,21 @@ inputs:
     description: 'Delete files from the server that have been removed from the repository.'
     required: false
     default: true
+    options:
+      - "yes"
+      - "no"
   enable_health_check:
     description: 'Check WordPress health after deployment and roll back if it fails. Disable to skip this step.'
     required: false
-    default: true
+    default: "yes"
+    options:
+      - "yes"
+      - "no"
 
 runs:
   using: 'composite'
   steps:
-    - name: Config action
+    - name: Create Env variables
       id: config
       shell: bash
       run: |
@@ -50,14 +56,23 @@ runs:
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
         echo "Tag name: $TAG_NAME"
         echo "::set-output name=ACTION_TAG::$TAG_NAME"
-
+        
+        CHECKOUT_DIR=${{ inputs.source_path }}
+        CHECKOUT_DIR="${CHECKOUT_DIR#/}/${CHECKOUT_DIR%/}" # Trim leading and trailing slashes
+        echo "CHECKOUT_DIR=$CHECKOUT_DIR" >> $GITHUB_ENV
+        echo "CHECKOUT_DIR: $CHECKOUT_DIR"
+        
+        DEST_DIR=${{ inputs.deployment_dest }}
+        DEST_DIR="${DEST_DIR#/}/${DEST_DIR%/}" # Trim leading and trailing slashes
+        echo "DEST_DIR=DEST_DIR" >> $GITHUB_ENV
+        echo "DEST_DIR: $DEST_DIR"
+  
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
-        echo "DEL_FILE_LIST=${{ inputs.source_path }}/deleted_files.txt" >> $GITHUB_ENV
+        echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
-        echo "CHECKOUT_DIR=${{ inputs.source_path }}" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
@@ -69,8 +84,17 @@ runs:
         echo "${{ inputs.ssh_private_key }}" > "$TEMP_KEY_FILE"
         chmod 600 "$TEMP_KEY_FILE"
         echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
-        
+
         ls -lha
+
+    - name: Validate inputs
+      shell: bash
+      run: |
+        SOURCE=${{ inputs.source_path }}
+        if [ ! -d "$SOURCE" ]; then
+          echo "The source directory does not exists."
+          exit 1
+        fi
 
     - name: Checkout Action
       with:
@@ -88,7 +112,7 @@ runs:
         done < "$IGNORE_FILE"
 
         echo "Preparing a changed file list..."
-        rsync -av --dry-run --checksum -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
+        rsync -av --dry-run --checksum -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
         
         echo "Files to be synchronized:"
@@ -96,7 +120,7 @@ runs:
         echo "End of list."
         
         echo "Preparing a deleted file list..."
-        rsync -av --dry-run --checksum -e --delete --ignore-existing "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > > $DEL_FILE_LIST
+        rsync -av --dry-run --checksum -e --delete --ignore-existing "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > > $DEL_FILE_LIST
         
         echo "Files to be DELETED:"
         cat "$DEL_FILE_LIST"
@@ -132,5 +156,9 @@ runs:
       shell: bash
       run: |
         echo "Run Server deployer"
-        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh $TAR_NAME || exit 1"
+        COMMAND=${{inputs.post_deploy_commands}}
+        CLEAN_UP=${{inputs.cleanup_deleted_files}}
+        HEALTH_CHECK=${{inputs.enable_health_check}}
+
+        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $COMMAND || exit 1"
         rm -f $TEMP_KEY_FILE

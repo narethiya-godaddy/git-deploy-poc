@@ -66,7 +66,7 @@ runs:
         DEST_DIR=${{ inputs.deployment_dest }}
         DEST_DIR="${DEST_DIR#/}" # Remove leading slash
         DEST_DIR="${DEST_DIR%/}" # Remove trailing slash
-        echo "DEST_DIR=DEST_DIR" >> $GITHUB_ENV
+        echo "DEST_DIR=$DEST_DIR" >> $GITHUB_ENV
         echo "DEST_DIR: $DEST_DIR"
   
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV

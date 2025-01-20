@@ -138,10 +138,11 @@ runs:
     - name: Create tar file
       shell: bash
       run: |
+        BASE_DIR=$(pwd)
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
-        tar -czvf "../$TAR_FILE" -T "../$SYNC_FILE_LIST"
-        cd ../
+        tar -czvf "$BASE_DIR/$TAR_FILE" -T "$BASE_DIR/$SYNC_FILE_LIST"
+        cd $BASE_DIR
         echo "Tar file created successfully."
 
     - name: Upload tar file to server

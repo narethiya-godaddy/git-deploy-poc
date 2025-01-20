@@ -120,7 +120,7 @@ runs:
         echo "Source: $CHECKOUT_DIR/"
         echo "Destination: /html/$DEST_DIR/"
         echo 'rsync command'
-        echo 'rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/"'
+        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/$DEST_DIR/"
         rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
 

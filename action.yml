@@ -73,7 +73,7 @@ runs:
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
-        echo "DEL_FILE_LIST=deleted_files.txt" >> $GITHUB_ENV
+        echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV

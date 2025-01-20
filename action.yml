@@ -73,7 +73,7 @@ runs:
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
-        echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
+        echo "DEL_FILE_LIST=deleted_files.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
@@ -130,7 +130,6 @@ runs:
         echo "--------End of list--------"
         
         echo "Preparing a deleted file list..."
-        touch $DEL_FILE_LIST
         echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/html/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
         rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST
         echo "$DEL_FILE_LIST" >> "$SYNC_FILE_LIST"

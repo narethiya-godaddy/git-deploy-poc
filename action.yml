@@ -58,12 +58,14 @@ runs:
         echo "::set-output name=ACTION_TAG::$TAG_NAME"
         
         CHECKOUT_DIR=${{ inputs.source_path }}
-        CHECKOUT_DIR="${CHECKOUT_DIR#/}/${CHECKOUT_DIR%/}" # Trim leading and trailing slashes
+        CHECKOUT_DIR="${CHECKOUT_DIR#/}" # Remove leading slash
+        CHECKOUT_DIR="${CHECKOUT_DIR%/}" # Remove trailing slash
         echo "CHECKOUT_DIR=$CHECKOUT_DIR" >> $GITHUB_ENV
         echo "CHECKOUT_DIR: $CHECKOUT_DIR"
-        
+
         DEST_DIR=${{ inputs.deployment_dest }}
-        DEST_DIR="${DEST_DIR#/}/${DEST_DIR%/}" # Trim leading and trailing slashes
+        DEST_DIR="${DEST_DIR#/}" # Remove leading slash
+        DEST_DIR="${DEST_DIR%/}" # Remove trailing slash
         echo "DEST_DIR=DEST_DIR" >> $GITHUB_ENV
         echo "DEST_DIR: $DEST_DIR"
   
@@ -84,6 +86,9 @@ runs:
         echo "${{ inputs.ssh_private_key }}" > "$TEMP_KEY_FILE"
         chmod 600 "$TEMP_KEY_FILE"
         echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
+        
+        SSH_AUTH="ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
+        echo "SSH_AUTH=$SSH_AUTH" >> $GITHUB_ENV
 
         ls -lha
 
@@ -99,7 +104,7 @@ runs:
     - name: Checkout Action
       with:
         path: action_dir
-        repository: narethiya-godaddy/git-deploy-poc
+        repository: narethiya-godaddy/git-deploy-poc # TODO: Change this on prod
         ref: ${{ steps.config.outputs.ACTION_TAG }}
       uses: actions/checkout@v3
 
@@ -112,19 +117,21 @@ runs:
         done < "$IGNORE_FILE"
 
         echo "Preparing a changed file list..."
-        rsync -av --dry-run --checksum -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
+        echo "Source: $CHECKOUT_DIR/"
+        echo "Destination: /html/$DEST_DIR/"
+        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
-        
+
         echo "Files to be synchronized:"
         cat "$SYNC_FILE_LIST"
-        echo "End of list."
+        echo "--------End of list--------"
         
         echo "Preparing a deleted file list..."
-        rsync -av --dry-run --checksum -e --delete --ignore-existing "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > > $DEL_FILE_LIST
-        
+        rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > > $DEL_FILE_LIST
+
         echo "Files to be DELETED:"
         cat "$DEL_FILE_LIST"
-        echo "End of deleted file list."
+        echo "--------End of deleted file list--------"
 
     - name: Create tar file
       shell: bash
@@ -139,10 +146,10 @@ runs:
       shell: bash
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
-        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
         echo "Uploading tar file to $REMOTE_DIR"
 
-        rsync -avz --delete -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
+        rsync -avz -e "ssh $SSH_AUTH" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
@@ -160,5 +167,5 @@ runs:
         CLEAN_UP=${{inputs.cleanup_deleted_files}}
         HEALTH_CHECK=${{inputs.enable_health_check}}
 
-        ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" "/html/deployer.sh $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $COMMAND || exit 1"
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "/html/deployer.sh $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $COMMAND || exit 1"
         rm -f $TEMP_KEY_FILE

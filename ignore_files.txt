@@ -25,3 +25,6 @@ wp-includes/
 wp-content/mu-plugins/
 wp-content/object-cache.php
 wp-content/uploads/
+output/
+private_key
+action_dir/

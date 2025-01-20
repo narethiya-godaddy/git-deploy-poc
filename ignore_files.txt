@@ -25,4 +25,3 @@ wp-includes/
 wp-content/mu-plugins/
 wp-content/object-cache.php
 wp-content/uploads/
-*.log

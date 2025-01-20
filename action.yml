@@ -12,6 +12,26 @@ inputs:
   ssh_private_key:
     description: 'SSH Server private key'
     required: true
+  source_path:
+    description: 'Path to the repository checkout.'
+    required: false
+    default: '.'
+  deployment_dest:
+    description: 'Path to a specific directory to deploy instead of the entire repository, leave blank for whole repository deployment.'
+    required: false
+    default: '.'
+  post_deploy_commands:
+    description: 'Commands to execute on the server after the deployment is complete.'
+    required: false
+    default: ''
+  cleanup_deleted_files:
+    description: 'Delete files from the server that have been removed from the repository.'
+    required: false
+    default: true
+  enable_health_check:
+    description: 'Check WordPress health after deployment and roll back if it fails. Disable to skip this step.'
+    required: false
+    default: true
 
 runs:
   using: 'composite'
@@ -29,14 +49,15 @@ runs:
         TAG_NAME=$(basename "$ACTION_PATH")
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
         echo "Tag name: $TAG_NAME"
-
         echo "::set-output name=ACTION_TAG::$TAG_NAME"
-        echo "CHECKOUT_DIR=git_checkout" >> $GITHUB_ENV
+
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
+        echo "DEL_FILE_LIST=${{ inputs.source_path }}/deleted_files.txt" >> $GITHUB_ENV
         echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
+        echo "CHECKOUT_DIR=${{ inputs.source_path }}" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
@@ -48,11 +69,8 @@ runs:
         echo "${{ inputs.ssh_private_key }}" > "$TEMP_KEY_FILE"
         chmod 600 "$TEMP_KEY_FILE"
         echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
-
-    - name: Checkout repository
-      with:
-        path: git_checkout
-      uses: actions/checkout@v3
+        
+        ls -lha
 
     - name: Checkout Action
       with:
@@ -61,7 +79,7 @@ runs:
         ref: ${{ steps.config.outputs.ACTION_TAG }}
       uses: actions/checkout@v3
 
-    - name: Create tar file
+    - name: Prepare changed and deleted lists
       shell: bash
       run: |
         EXCLUDE_ARGS=""
@@ -72,11 +90,21 @@ runs:
         echo "Preparing a changed file list..."
         rsync -av --dry-run --checksum -e "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
-
+        
         echo "Files to be synchronized:"
         cat "$SYNC_FILE_LIST"
         echo "End of list."
+        
+        echo "Preparing a deleted file list..."
+        rsync -av --dry-run --checksum -e --delete --ignore-existing "ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > > $DEL_FILE_LIST
+        
+        echo "Files to be DELETED:"
+        cat "$DEL_FILE_LIST"
+        echo "End of deleted file list."
 
+    - name: Create tar file
+      shell: bash
+      run: |
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
         tar -czvf "../$TAR_FILE" -T "../$SYNC_FILE_LIST"
@@ -97,7 +125,7 @@ runs:
       shell: bash
       run: |
         echo "Cleaning up temporary files..."
-        rm -rf $OUTPUT_DIR $CHECKOUT_DIR $ACTION_DIR
+        rm -rf $OUTPUT_DIR $ACTION_DIR
         echo "Temporary files cleaned up successfully."
 
     - name: Run Deployer

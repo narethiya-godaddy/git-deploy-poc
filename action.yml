@@ -87,7 +87,7 @@ runs:
         chmod 600 "$TEMP_KEY_FILE"
         echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
         
-        SSH_AUTH="ssh -i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
+        SSH_AUTH="-i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
         echo "SSH_AUTH=$SSH_AUTH" >> $GITHUB_ENV
 
         ls -lha

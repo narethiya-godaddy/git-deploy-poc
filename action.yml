@@ -116,7 +116,7 @@ runs:
           EXCLUDE_ARGS+="--exclude=$line "
         done < "$IGNORE_FILE"
         
-        echo "ignore list: $IGNORE_FILE"
+        echo "ignore list: $EXCLUDE_ARGS"
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
         echo "Destination: /html/$DEST_DIR/"

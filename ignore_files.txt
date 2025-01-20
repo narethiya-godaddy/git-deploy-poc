@@ -5,6 +5,9 @@ Thumbs.db
 .htaccess
 readme.md
 .gitignore
+output
+private_key
+action_dir
 index.php
 plat-cron.php
 wp-activate.php
@@ -25,6 +28,3 @@ wp-includes/
 wp-content/mu-plugins/
 wp-content/object-cache.php
 wp-content/uploads/
-output
-private_key
-action_dir

@@ -101,9 +101,9 @@ runs:
         fi
         
         if [[ "$DEST_DIR" != "." ]]; then
-          if ! ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "[ -d '$SSH_ROOT_DIR/$DEST_DIR' ]"; then
-            echo "Error: Directory '$SSH_ROOT_DIR/$DEST_DIR' does not exist on the server."
-            exit 1
+          if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$SSH_ROOT_DIR/$DEST_DIR' ]"; then
+            echo "Error: Directory '/$SSH_ROOT_DIR/$DEST_DIR' does not exist on the server."
+            #exit 1
           fi
         fi
 

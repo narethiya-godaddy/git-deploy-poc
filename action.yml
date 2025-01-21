@@ -61,20 +61,19 @@ runs:
         CHECKOUT_DIR="${CHECKOUT_DIR#/}" # Remove leading slash
         CHECKOUT_DIR="${CHECKOUT_DIR%/}" # Remove trailing slash
         echo "CHECKOUT_DIR=$CHECKOUT_DIR" >> $GITHUB_ENV
-        echo "CHECKOUT_DIR: $CHECKOUT_DIR"
 
         DEST_DIR=${{ inputs.deployment_dest }}
         DEST_DIR="${DEST_DIR#/}" # Remove leading slash
         DEST_DIR="${DEST_DIR%/}" # Remove trailing slash
         echo "DEST_DIR=$DEST_DIR" >> $GITHUB_ENV
-        echo "DEST_DIR: $DEST_DIR"
   
         echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
+        echo "SSH_ROOT_DIR=html" >> $GITHUB_ENV
         echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
         echo "OUTPUT_DIR=output" >> $GITHUB_ENV
         echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
         echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
-        echo "REMOTE_DIR=/html/deployer" >> $GITHUB_ENV
+        echo "REMOTE_DIR=$SSH_ROOT_DIR/deployer" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
 
@@ -100,6 +99,13 @@ runs:
           echo "The source directory does not exists."
           exit 1
         fi
+        
+        if [[ "$DEST_DIR" != "." ]]; then
+          if ! ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "[ -d '$SSH_ROOT_DIR/$DEST_DIR' ]"; then
+            echo "Error: Directory '$SSH_ROOT_DIR/$DEST_DIR' does not exist on the server."
+            exit 1
+          fi
+        fi
 
     - name: Checkout Action
       with:
@@ -108,7 +114,7 @@ runs:
         ref: ${{ steps.config.outputs.ACTION_TAG }}
       uses: actions/checkout@v3
 
-    - name: Prepare changed and deleted lists
+    - name: Prepare changed and deleted files lists
       shell: bash
       run: |
         EXCLUDE_ARGS=""
@@ -119,10 +125,10 @@ runs:
         echo "ignore list: $EXCLUDE_ARGS"
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
-        echo "Destination: /html/$DEST_DIR/"
-        echo 'rsync command'
-        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/html/$DEST_DIR/"
-        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
+        echo "Destination: /$SSH_ROOT_DIR/$DEST_DIR/"
+        echo 'rsync command: '
+        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/"
+        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
 
         echo "Files to be synchronized:"
@@ -131,8 +137,8 @@ runs:
         
         echo "Preparing a deleted file list..."
         touch $DEL_FILE_LIST
-        echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/html/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
-        rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/html/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST || true
+        echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
+        rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST || true
         echo $(basename "$DEL_FILE_LIST") >> "$SYNC_FILE_LIST"
 
         echo "Files to be DELETED:"
@@ -153,10 +159,10 @@ runs:
       shell: bash
       run: |
         echo "Creating remote directory: $REMOTE_DIR"
-        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "mkdir -p '$REMOTE_DIR' || exit 1"
-        echo "Uploading tar file to $REMOTE_DIR"
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "mkdir -p '/$REMOTE_DIR' || exit 1"
 
-        rsync -avz -e "ssh $SSH_AUTH" $TAR_FILE "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
+        echo "Uploading tar file to $REMOTE_DIR"
+        rsync -avz -e "ssh $SSH_AUTH" $TAR_FILE "$SSH_USER@$SSH_HOST:/$REMOTE_DIR/"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
@@ -170,9 +176,12 @@ runs:
       shell: bash
       run: |
         echo "Run Server deployer"
-        COMMAND=${{inputs.post_deploy_commands}}
+        POST_COMMAND=${{inputs.post_deploy_commands}}
         CLEAN_UP=${{inputs.cleanup_deleted_files}}
         HEALTH_CHECK=${{inputs.enable_health_check}}
+        DEPLOYER_SH="/$SSH_ROOT_DIR/deployer.sh"
 
-        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "/html/deployer.sh $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $COMMAND || exit 1"
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $POST_COMMAND
+        [ $? -ne 0 ] && { echo "Fail to execute deployer script"; exit 1; }
+  
         rm -f $TEMP_KEY_FILE

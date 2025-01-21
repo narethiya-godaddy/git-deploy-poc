@@ -26,6 +26,7 @@ inputs:
     default: ''
   cleanup_deleted_files:
     description: 'Delete files from the server that have been removed from the repository.'
+    type: choice
     required: false
     default: true
     options:
@@ -33,6 +34,7 @@ inputs:
       - "no"
   enable_health_check:
     description: 'Check WordPress health after deployment and roll back if it fails. Disable to skip this step.'
+    type: choice
     required: false
     default: "yes"
     options:

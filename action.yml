@@ -47,55 +47,54 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-
-        mkdir -p ~/.ssh output
-        ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
-
-        ACTION_PATH="${{ github.action_path }}"
-        TAG_NAME=$(basename "$ACTION_PATH")
-        echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
-        echo "Tag name: $TAG_NAME"
-        echo "::set-output name=ACTION_TAG::$TAG_NAME"
         
+        OUTPUT_DIR="output"
+        SSH_ROOT_DIR="html"
+        TEMP_KEY_FILE="private_key"
+        ACTION_DIR="action_dir"
+        IGNORE_FILES="$ACTION_DIR/files_to_ignore.txt"
+        SYNC_FILES="$OUTPUT_DIR/files_to_sync.txt"
+        REMOTE_DIR="$SSH_ROOT_DIR/deployer"
+        SSH_AUTH="-i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
+        TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
+
         CHECKOUT_DIR=${{ inputs.source_path }}
         CHECKOUT_DIR="${CHECKOUT_DIR#/}" # Remove leading slash
         CHECKOUT_DIR="${CHECKOUT_DIR%/}" # Remove trailing slash
         echo "CHECKOUT_DIR=$CHECKOUT_DIR" >> $GITHUB_ENV
-
+        
         DEST_DIR=${{ inputs.deployment_dest }}
         DEST_DIR="${DEST_DIR#/}" # Remove leading slash
         DEST_DIR="${DEST_DIR%/}" # Remove trailing slash
         echo "DEST_DIR=$DEST_DIR" >> $GITHUB_ENV
-  
-        echo "ACTION_DIR=action_dir" >> $GITHUB_ENV
-        echo "SSH_ROOT_DIR=html" >> $GITHUB_ENV
-        echo "IGNORE_FILE=action_dir/ignore_files.txt" >> $GITHUB_ENV
-        echo "OUTPUT_DIR=output" >> $GITHUB_ENV
-        echo "SYNC_FILE_LIST=output/files_to_sync.txt" >> $GITHUB_ENV
+        
+        ACTION_PATH="${{ github.action_path }}"
+        TAG_NAME=$(basename "$ACTION_PATH")
+        echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
+        echo "::set-output name=ACTION_TAG::$TAG_NAME"
+        
+        echo "ACTION_DIR=$ACTION_DIR" >> $GITHUB_ENV
+        echo "IGNORE_FILES=$IGNORE_FILES" >> $GITHUB_ENV
+        echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
+        echo "SYNC_FILES=$SYNC_FILES" >> $GITHUB_ENV
         echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
-        echo "REMOTE_DIR=$SSH_ROOT_DIR/deployer" >> $GITHUB_ENV
+        echo "REMOTE_DIR=$REMOTE_DIR" >> $GITHUB_ENV
+        echo "SSH_ROOT_DIR=$SSH_ROOT_DIR" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
-
-        TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
+        echo "SSH_AUTH=$SSH_AUTH" >> $GITHUB_ENV
         echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
-        echo "TAR_FILE=output/$TAR_NAME" >> $GITHUB_ENV
-        
-        TEMP_KEY_FILE="private_key"
+        echo "TAR_FILE=$OUTPUT_DIR/$TAR_NAME" >> $GITHUB_ENV
+
+        mkdir -p ~/.ssh $OUTPUT_DIR
+        ssh-keyscan -H "${{ inputs.remote_host }}" >> ~/.ssh/known_hosts
         echo "${{ inputs.ssh_private_key }}" > "$TEMP_KEY_FILE"
         chmod 600 "$TEMP_KEY_FILE"
         echo "TEMP_KEY_FILE=$TEMP_KEY_FILE" >> $GITHUB_ENV
-        
-        SSH_AUTH="-i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
-        echo "SSH_AUTH=$SSH_AUTH" >> $GITHUB_ENV
-
-        ls -lha
-
     - name: Validate inputs
       shell: bash
       run: |
-        SOURCE=${{ inputs.source_path }}
-        if [ ! -d "$SOURCE" ]; then
+        if [ ! -d "$CHECKOUT_DIR" ]; then
           echo "The source directory does not exists."
           exit 1
         fi
@@ -120,7 +119,7 @@ runs:
         EXCLUDE_ARGS=""
         while IFS= read -r line; do
           EXCLUDE_ARGS+="--exclude=$line "
-        done < "$IGNORE_FILE"
+        done < "$IGNORE_FILES"
         
         echo "ignore list: $EXCLUDE_ARGS"
         echo "Preparing a changed file list..."
@@ -128,18 +127,18 @@ runs:
         echo "Destination: /$SSH_ROOT_DIR/$DEST_DIR/"
         echo 'rsync command: '
         echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/"
-        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep -v '/$' > $SYNC_FILE_LIST
-        sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILE_LIST"
+        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep -v '/$' > $SYNC_FILES
+        sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILES"
 
         echo "Files to be synchronized:"
-        cat "$SYNC_FILE_LIST"
+        cat "$SYNC_FILES"
         echo "--------End of list--------"
         
         echo "Preparing a deleted file list..."
         touch $DEL_FILE_LIST
         echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
         rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST || true
-        echo $(basename "$DEL_FILE_LIST") >> "$SYNC_FILE_LIST"
+        echo $(basename "$DEL_FILE_LIST") >> "$SYNC_FILES"
 
         echo "Files to be DELETED:"
         cat "$DEL_FILE_LIST"
@@ -151,7 +150,7 @@ runs:
         BASE_DIR=$(pwd)
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
-        tar -czvf "$BASE_DIR/$TAR_FILE" -T "$BASE_DIR/$SYNC_FILE_LIST"
+        tar -czvf "$BASE_DIR/$TAR_FILE" -T "$BASE_DIR/$SYNC_FILES"
         cd $BASE_DIR
         echo "Tar file created successfully."
 

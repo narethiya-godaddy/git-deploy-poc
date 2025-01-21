@@ -125,6 +125,8 @@ runs:
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
         echo "Destination: /$SSH_ROOT_DIR/$DEST_DIR/"
+        echo "current dir: $(pwd)"
+        ls -lha
         echo "rsync command: "
         echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/"
         
@@ -146,9 +148,9 @@ runs:
         touch $DEL_FILE_LIST
         echo "Preparing a deleted file list..."
         echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
-        
-        rsync -av --dry-run --delete --ignore-existing $EXCLUDE_ARGS \ 
-          -e "ssh $SSH_AUTH" \  
+
+        rsync -av --dry-run --delete --ignore-existing $EXCLUDE_ARGS \
+          -e "ssh $SSH_AUTH" \
           $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" \
           | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST
         

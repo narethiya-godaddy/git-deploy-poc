@@ -102,11 +102,11 @@ runs:
         if [[ "$DEST_DIR" != "." ]]; then
           if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$SSH_ROOT_DIR/$DEST_DIR' ]"; then
             echo "Error: Directory '/$SSH_ROOT_DIR/$DEST_DIR' does not exist on the server."
-            #exit 1
+            exit 1
           fi
         fi
 
-    - name: Checkout Action
+    - name: Checkout action repo
       with:
         path: action_dir
         repository: narethiya-godaddy/git-deploy-poc # TODO: Change this on prod
@@ -125,21 +125,39 @@ runs:
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
         echo "Destination: /$SSH_ROOT_DIR/$DEST_DIR/"
-        echo 'rsync command: '
+        echo "rsync command: "
         echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/"
-        rsync -av --dry-run --checksum -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep -v '/$' > $SYNC_FILES
+        
+        rsync -av --dry-run --checksum $EXCLUDE_ARGS \
+          -e "ssh $SSH_AUTH" \
+          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" \
+          | grep -v '/$' > $SYNC_FILES
+        
+        if [[ $? -ne 0 ]]; then
+          echo "Error: Failed to prepare the list of changed files."
+          exit 1
+        fi
+        
         sed -i '1d;N;$!P;$!D;$d;$d' "$SYNC_FILES"
-
         echo "Files to be synchronized:"
         cat "$SYNC_FILES"
         echo "--------End of list--------"
         
-        echo "Preparing a deleted file list..."
         touch $DEL_FILE_LIST
+        echo "Preparing a deleted file list..."
         echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
-        rsync -av --dry-run --delete --ignore-existing -e "ssh $SSH_AUTH" $EXCLUDE_ARGS $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST || true
-        echo $(basename "$DEL_FILE_LIST") >> "$SYNC_FILES"
+        
+        rsync -av --dry-run --delete --ignore-existing $EXCLUDE_ARGS \ 
+          -e "ssh $SSH_AUTH" \  
+          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" \
+          | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST
+        
+        if [[ $? -ne 0 ]]; then
+          echo "Error: Failed to prepare the list of files to delete."
+          exit 1
+        fi
 
+        echo $(basename "$DEL_FILE_LIST") >> "$SYNC_FILES"
         echo "Files to be DELETED:"
         cat "$DEL_FILE_LIST"
         echo "--------End of deleted file list--------"
@@ -171,7 +189,7 @@ runs:
         rm -rf $OUTPUT_DIR $ACTION_DIR
         echo "Temporary files cleaned up successfully."
 
-    - name: Run Deployer
+    - name: Execute Deployment script
       shell: bash
       run: |
         echo "Run Server deployer"
@@ -180,7 +198,7 @@ runs:
         HEALTH_CHECK=${{inputs.enable_health_check}}
         DEPLOYER_SH="/$SSH_ROOT_DIR/deployer.sh"
 
-        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $POST_COMMAND
-        [ $? -ne 0 ] && { echo "Fail to execute deployer script"; exit 1; }
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" \ 
+          $DEPLOYER_SH $DEST_DIR $TAR_NAME $CLEAN_UP $HEALTH_CHECK $POST_COMMAND
   
         rm -f $TEMP_KEY_FILE

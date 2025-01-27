@@ -58,7 +58,7 @@ runs:
         SYNC_FILES="$OUTPUT_DIR/files_to_sync.txt"
         REMOTE_DIR="$SSH_ROOT_DIR/deployer"
         SSH_AUTH="-i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
-        TAR_NAME="repository_$(openssl rand -hex 4).tar.gz"
+        TAR_NAME="repository_$(openssl rand -hex 4).tar"
 
         CHECKOUT_DIR=${{ inputs.source_path }}
         CHECKOUT_DIR="${CHECKOUT_DIR#/}" # Remove leading slash
@@ -175,7 +175,7 @@ runs:
         BASE_DIR=$(pwd)
         cd $CHECKOUT_DIR
         echo "Creating tar file: $TAR_FILE"
-        tar -czvf "$BASE_DIR/$TAR_FILE" -T "$BASE_DIR/$SYNC_FILES"
+        tar -cvf "$BASE_DIR/$TAR_FILE" -T "$BASE_DIR/$SYNC_FILES"
         cd $BASE_DIR
         echo "Tar file created successfully."
 
@@ -205,6 +205,6 @@ runs:
         DEPLOYER_SH="/$SSH_ROOT_DIR/deployer.sh"
 
         ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" \ 
-          $DEPLOYER_SH $DEST_DIR $TAR_NAME $HEALTH_CHECK $POST_COMMAND
+          $DEPLOYER_SH $TAR_NAME $DEST_DIR $HEALTH_CHECK $POST_COMMAND
   
         rm -f $TEMP_KEY_FILE

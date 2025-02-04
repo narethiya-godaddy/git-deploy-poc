@@ -26,20 +26,12 @@ inputs:
     default: ''
   cleanup_deleted_files:
     description: 'Delete files from the server that have been removed from the repository.'
-    type: choice
-    required: false
-    default: true
-    options:
-      - "yes"
-      - "no"
-  enable_health_check:
-    description: 'Check WordPress health after deployment and roll back if it fails. Disable to skip this step.'
-    type: choice
     required: false
     default: "yes"
-    options:
-      - "yes"
-      - "no"
+  enable_health_check:
+    description: 'Check WordPress health after deployment and roll back if it fails. Disable to skip this step.'
+    required: false
+    default: "yes"
 
 runs:
   using: 'composite'
@@ -49,14 +41,17 @@ runs:
       shell: bash
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
-        
-        OUTPUT_DIR="output"
-        SSH_ROOT_DIR="html"
-        TEMP_KEY_FILE="private_key"
+
+#        Remove directory paths
+        DEPLOYER_APP_DIR="git-deployer"
+        WP_ROOT_DIR="html"
+        UPLOAD_DIR="git-deployer-upload"
+#        Local paths
         ACTION_DIR="action_dir"
+        OUTPUT_DIR="output"
         IGNORE_FILES="$ACTION_DIR/files_to_ignore.txt"
         SYNC_FILES="$OUTPUT_DIR/files_to_sync.txt"
-        REMOTE_DIR="$SSH_ROOT_DIR/deployer"
+        TEMP_KEY_FILE="private_key"             
         SSH_AUTH="-i $TEMP_KEY_FILE -o StrictHostKeyChecking=no"
         TAR_NAME="repository_$(openssl rand -hex 4).tar"
 
@@ -80,8 +75,9 @@ runs:
         echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
         echo "SYNC_FILES=$SYNC_FILES" >> $GITHUB_ENV
         echo "DEL_FILE_LIST=$CHECKOUT_DIR/deleted_files.txt" >> $GITHUB_ENV
-        echo "REMOTE_DIR=$REMOTE_DIR" >> $GITHUB_ENV
-        echo "SSH_ROOT_DIR=$SSH_ROOT_DIR" >> $GITHUB_ENV
+        echo "UPLOAD_DIR=$UPLOAD_DIR" >> $GITHUB_ENV
+        echo "DEPLOYER_APP_DIR=$DEPLOYER_APP_DIR" >> $GITHUB_ENV
+        echo "WP_ROOT_DIR=$WP_ROOT_DIR" >> $GITHUB_ENV
         echo "SSH_USER=${{ inputs.ssh_user }}" >> $GITHUB_ENV
         echo "SSH_HOST=${{ inputs.remote_host }}" >> $GITHUB_ENV
         echo "SSH_AUTH=$SSH_AUTH" >> $GITHUB_ENV
@@ -101,10 +97,10 @@ runs:
           echo "The source directory does not exists."
           exit 1
         fi
-        
-        if [[ "$DEST_DIR" != "." ]]; then
-          if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$SSH_ROOT_DIR/$DEST_DIR' ]"; then
-            echo "Error: Directory '/$SSH_ROOT_DIR/$DEST_DIR' does not exist on the server."
+
+        if [[ -n "$DEST_DIR" && "$DEST_DIR" != "." ]]; then
+          if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$WP_ROOT_DIR/$DEST_DIR' ]"; then
+            echo "Error: Directory '/$WP_ROOT_DIR/$DEST_DIR' does not exist on the server."
             exit 1
           fi
         fi
@@ -127,15 +123,15 @@ runs:
         echo "ignore list: $EXCLUDE_ARGS"
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
-        echo "Destination: /$SSH_ROOT_DIR/$DEST_DIR/"
+        echo "Destination: /$WP_ROOT_DIR/$DEST_DIR/"
         echo "current dir: $(pwd)"
         ls -lha
         echo "rsync command: "
-        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/"
+        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/"
         
         rsync -av --dry-run --checksum $EXCLUDE_ARGS \
           -e "ssh $SSH_AUTH" \
-          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" \
+          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/" \
           | grep -v '/$' > $SYNC_FILES
         
         if [[ $? -ne 0 ]]; then
@@ -151,11 +147,11 @@ runs:
         if [ "$CLEAN_UP" = "yes" ]; then
           touch $DEL_FILE_LIST
           echo "Preparing a deleted file list..."
-          echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
+          echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
   
           rsync -av --dry-run --delete --ignore-existing $EXCLUDE_ARGS \
             -e "ssh $SSH_AUTH" \
-            $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$SSH_ROOT_DIR/$DEST_DIR/" \
+            $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/" \
             | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST
           
           if [[ $? -ne 0 ]]; then
@@ -182,11 +178,11 @@ runs:
     - name: Upload tar file to server
       shell: bash
       run: |
-        echo "Creating remote directory: $REMOTE_DIR"
-        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "mkdir -p '/$REMOTE_DIR' || exit 1"
+        echo "Creating remote directory: $UPLOAD_DIR"
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" "mkdir -p '/$UPLOAD_DIR' || exit 1"
 
-        echo "Uploading tar file to $REMOTE_DIR"
-        rsync -avz -e "ssh $SSH_AUTH" $TAR_FILE "$SSH_USER@$SSH_HOST:/$REMOTE_DIR/"
+        echo "Uploading tar file to $UPLOAD_DIR"
+        rsync -avz -e "ssh $SSH_AUTH" $TAR_FILE "$SSH_USER@$SSH_HOST:/$UPLOAD_DIR/"
         echo "Tar file uploaded successfully."
 
     - name: Clean up
@@ -202,7 +198,7 @@ runs:
         echo "Run Server deployer"
         POST_COMMAND=${{inputs.post_deploy_commands}}
         HEALTH_CHECK=${{inputs.enable_health_check}}
-        DEPLOYER_SH="/$SSH_ROOT_DIR/deployer.sh"
+        DEPLOYER_SH="/$DEPLOYER_APP_DIR/bin/init mwp:deployer"
 
         ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" \ 
           $DEPLOYER_SH $TAR_NAME $DEST_DIR $HEALTH_CHECK $POST_COMMAND

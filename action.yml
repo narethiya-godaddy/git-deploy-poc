@@ -42,7 +42,6 @@ runs:
       run: |
         sudo apt-get update -q && sudo apt-get install -y rsync sshpass
 
-
         DEPLOYER_APP_DIR="git-deployer"
         WP_ROOT_DIR="html"
         UPLOAD_DIR="git-deployer-upload"

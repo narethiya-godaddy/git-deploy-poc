@@ -198,8 +198,8 @@ runs:
         POST_COMMAND=${{inputs.post_deploy_commands}}
         HEALTH_CHECK=${{inputs.enable_health_check}}
         DEPLOYER_SH="php /$DEPLOYER_APP_DIR/bin/init mwp:deployer"
+      
+        echo "SSH Command: ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $TAR_NAME $DEST_DIR $HEALTH_CHECK $POST_COMMAND"; 
+        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $TAR_NAME $DEST_DIR $HEALTH_CHECK $POST_COMMAND
 
-        ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" \ 
-          $DEPLOYER_SH $TAR_NAME $DEST_DIR $HEALTH_CHECK $POST_COMMAND
-  
         rm -f $TEMP_KEY_FILE

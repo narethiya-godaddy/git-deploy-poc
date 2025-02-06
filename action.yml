@@ -64,6 +64,11 @@ runs:
         DEST_DIR="${DEST_DIR%/}" # Remove trailing slash
         echo "DEST_DIR=$DEST_DIR" >> $GITHUB_ENV
         
+        WP_DEST_DIR="$WP_ROOT_DIR/$DEST_DIR"
+        WP_DEST_DIR="${WP_DEST_DIR#/}" # Remove leading slash
+        WP_DEST_DIR="${WP_DEST_DIR%/}" # Remove trailing slash
+        echo "WP_DEST_DIR=$WP_DEST_DIR" >> $GITHUB_ENV
+        
         ACTION_PATH="${{ github.action_path }}"
         TAG_NAME=$(basename "$ACTION_PATH")
         echo "ACTION_TAG=$TAG_NAME" >> $GITHUB_ENV
@@ -97,9 +102,9 @@ runs:
           exit 1
         fi
 
-        if [[ -n "$DEST_DIR" && "$DEST_DIR" != "." ]]; then
-          if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$WP_ROOT_DIR/$DEST_DIR' ]"; then
-            echo "Error: Directory '/$WP_ROOT_DIR/$DEST_DIR' does not exist on the server."
+        if [[ "$WP_DEST_DIR" != "$WP_ROOT_DIR" ]]; then
+          if ! ssh "$SSH_AUTH" "$SSH_USER@$SSH_HOST" "[ -d '/$WP_DEST_DIR' ]"; then
+            echo "Error: Directory '/$WP_DEST_DIR' does not exist on the server."
             exit 1
           fi
         fi
@@ -122,15 +127,15 @@ runs:
         echo "ignore list: $EXCLUDE_ARGS"
         echo "Preparing a changed file list..."
         echo "Source: $CHECKOUT_DIR/"
-        echo "Destination: /$WP_ROOT_DIR/$DEST_DIR/"
+        echo "Destination: /$WP_DEST_DIR/"
         echo "current dir: $(pwd)"
         ls -lha
         echo "rsync command: "
-        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/"
+        echo "rsync -av --dry-run --checksum -e ssh $SSH_AUTH $CHECKOUT_DIR/ $SSH_USER@$SSH_HOST:/$WP_DEST_DIR/"
         
         rsync -av --dry-run --checksum $EXCLUDE_ARGS \
           -e "ssh $SSH_AUTH" \
-          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/" \
+          $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_DEST_DIR/" \
           | grep -v '/$' > $SYNC_FILES
         
         if [[ $? -ne 0 ]]; then
@@ -146,11 +151,11 @@ runs:
         if [ "$CLEAN_UP" = "yes" ]; then
           touch $DEL_FILE_LIST
           echo "Preparing a deleted file list..."
-          echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
+          echo "rsync -av --dry-run --delete --ignore-existing -e 'ssh $SSH_AUTH' $CHECKOUT_DIR/ '$SSH_USER@$SSH_HOST:/$WP_DEST_DIR/' | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST"
   
           rsync -av --dry-run --delete --ignore-existing $EXCLUDE_ARGS \
             -e "ssh $SSH_AUTH" \
-            $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_ROOT_DIR/$DEST_DIR/" \
+            $CHECKOUT_DIR/ "$SSH_USER@$SSH_HOST:/$WP_DEST_DIR/" \
             | grep '^deleting ' | awk '{print $2}' | grep -v '/$' > $DEL_FILE_LIST
           
           if [[ $? -ne 0 ]]; then
@@ -203,7 +208,7 @@ runs:
         if [ "$HEALTH_CHECK" == "no" ]; then
           OPTIONS="$OPTIONS --skipHealthCheck"
         fi
-      
+
         echo "SSH Command: ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $TAR_NAME $OPTIONS"; 
         ssh $SSH_AUTH "$SSH_USER@$SSH_HOST" $DEPLOYER_SH $TAR_NAME $OPTIONS 
 
